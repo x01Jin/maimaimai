@@ -535,8 +535,8 @@ export class UIDisplay {
     if (!currentMatch || currentMatch.id !== matchId) return;
 
     if (confirm("Cancel this match and return to queue?")) {
-      this.queueManager.endCurrentMatch();
-      this.showToast("Match cancelled");
+      this.queueManager.cancelCurrentMatch();
+      this.showToast("Match cancelled and returned to queue");
     }
   }
 

@@ -109,6 +109,32 @@ export class QueueManager {
   }
 
   /**
+   * Cancel the current match and return it to the front of the queue
+   * @returns {Object|null} Canceled match or null if no current match
+   */
+  cancelCurrentMatch() {
+    if (!this.currentMatch) {
+      return null;
+    }
+
+    const canceledMatch = this.currentMatch;
+    canceledMatch.status = "canceled";
+    canceledMatch.canceledAt = new Date().toISOString();
+
+    // Return match to front of queue
+    this.queue.unshift(canceledMatch);
+
+    // Clear current match
+    this.currentMatch = null;
+
+    // Emit events
+    this.emit("matchStarted"); // This will clear current match display
+    this.emit("queueUpdated");
+
+    return canceledMatch;
+  }
+
+  /**
    * Get the current match
    * @returns {Object|null} Current match or null
    */
