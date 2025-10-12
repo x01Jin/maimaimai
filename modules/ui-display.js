@@ -1,6 +1,8 @@
 /**
  * UIDisplay - Handles UI rendering and user interactions for maimai queue
  * Mobile-only responsive display management
+ * long ass script it made me fckin die
+ * thanks for help zzzeus you're a legend
  */
 
 export class UIDisplay {
@@ -314,6 +316,7 @@ export class UIDisplay {
 
   /**
    * Add drag and drop event listeners
+   * im so shit at this lmao, there's even no animations
    */
   addDragAndDropListeners() {
     const queueDisplayEl = this.elements.queueDisplay;
@@ -596,6 +599,7 @@ export class UIDisplay {
 
   /**
    * Update FAB button state
+   * if you see this comment go fck yourself i aint maintaining this sht
    */
   updateFabState() {
     const fabBtn = this.elements.addMatchBtn;
