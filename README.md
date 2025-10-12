@@ -2,10 +2,20 @@
 
 A mobile-first web application for managing player queues in maimai arcade rhythm game sessions. Built with vanilla JavaScript and designed specifically for touch devices used in arcade environments.
 
-![maimai Queue Manager](https://img.shields.io/badge/maimai-Queue%20Manager-orange)
-![Mobile](https://img.shields.io/badge/Mobile-First-yellow)
-![JavaScript](https://img.shields.io/badge/Vanilla%20JS-ES6-blue)
-![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3.0-purple)
+<p align="center">
+  <a href="https://x01jin.github.io/maimaimai/">
+    <img src="https://img.shields.io/badge/🚀%20Try%20it%20now!-blue?style=for-the-badge" alt="Try it now!" />
+  </a>
+  <br>
+  <br>
+  <img src="https://img.shields.io/badge/maimai-Queue%20Manager-orange" alt="maimai Queue Manager" />
+  <br>
+  <img src="https://img.shields.io/badge/Mobile-First-yellow" alt="Mobile" />
+  <br>
+  <img src="https://img.shields.io/badge/Vanilla%20JS-ES6-blue" alt="JavaScript" />
+  <br>
+  <img src="https://img.shields.io/badge/Bootstrap-5.3.0-purple" alt="Bootstrap" />
+</p>
 
 ## 🎮 Overview
 
