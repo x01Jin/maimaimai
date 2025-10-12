@@ -1,6 +1,6 @@
 /**
  * QueueStorage - Handles local storage persistence for maimai queue
- * Mobile-only storage management
+ * misskonasiya
  */
 
 export class QueueStorage {

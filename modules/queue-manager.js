@@ -1,6 +1,6 @@
 /**
  * QueueManager - Handles queue operations for maimai matches
- * Mobile-only queue management system
+ * sanaol may ka match
  */
 
 export class QueueManager {
