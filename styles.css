@@ -1,0 +1,553 @@
+/* maimaimai - MOBILE ONLY (Portrait Phone Design) */
+
+/* CSS Custom Properties for Maimai Theme */
+:root {
+  /* Maimai Color Palette */
+  --maimai-primary: #6366f1;
+  --maimai-secondary: #8b5cf6;
+  --maimai-accent: #ec4899;
+  --maimai-success: #10b981;
+  --maimai-warning: #f59e0b;
+  --maimai-danger: #ef4444;
+
+  /* Dark Theme Colors */
+  --maimai-dark: #0f172a;
+  --maimai-dark-secondary: #1e293b;
+  --maimai-dark-tertiary: #334155;
+
+  /* Text Colors */
+  --maimai-text-light: #ffffff;
+  --maimai-text-secondary: #94a3b8;
+
+  /* Mobile Spacing (Portrait Phone) */
+  --mobile-spacing-xs: 0.5rem; /* 8px */
+  --mobile-spacing-sm: 0.75rem; /* 12px */
+  --mobile-spacing-md: 1rem; /* 16px */
+  --mobile-spacing-lg: 1.25rem; /* 20px */
+  --mobile-spacing-xl: 1.5rem; /* 24px */
+
+  /* Mobile Border Radius */
+  --mobile-radius-sm: 0.5rem; /* 8px */
+  --mobile-radius-md: 0.75rem; /* 12px */
+  --mobile-radius-lg: 1rem; /* 16px */
+
+  /* Mobile Shadows */
+  --mobile-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --mobile-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.15);
+  --mobile-shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Base Styles - MOBILE ONLY */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(
+    135deg,
+    var(--maimai-dark) 0%,
+    var(--maimai-dark-secondary) 50%,
+    var(--maimai-dark-tertiary) 100%
+  );
+  color: var(--maimai-text-light);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  /* Prevent horizontal scroll on mobile */
+  overflow-x: hidden;
+}
+
+/* Container - Mobile Portrait Only */
+.maimai-container {
+  padding: var(--mobile-spacing-md);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  /* Fixed width for mobile portrait */
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* Header - Mobile Optimized */
+.maimai-title {
+  font-size: 1.5rem; /* Smaller for mobile */
+  font-weight: 700;
+  color: var(--maimai-primary);
+  margin-bottom: var(--mobile-spacing-lg);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+/* Current Match Card - Mobile First */
+.current-match-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--mobile-radius-lg);
+  padding: var(--mobile-spacing-lg);
+  margin-bottom: var(--mobile-spacing-lg);
+  box-shadow: var(--mobile-shadow-md);
+  min-height: 100px; /* Smaller for mobile */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem; /* Smaller text for mobile */
+}
+
+.current-match-content {
+  width: 100%;
+  text-align: center;
+}
+
+.current-players {
+  margin: var(--mobile-spacing-md) 0;
+}
+
+.player-vs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mobile-spacing-md);
+}
+
+.player-1p,
+.player-2p {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--mobile-spacing-xs);
+}
+
+.player-label {
+  font-size: 0.75rem;
+  color: var(--maimai-text-secondary);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.player-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.vs-divider {
+  font-size: 1.5rem;
+  color: var(--maimai-primary);
+}
+
+.player-solo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.player-solo .player-name {
+  font-size: 1.2rem;
+  color: var(--maimai-accent);
+}
+
+.current-match-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--mobile-spacing-sm);
+  flex-wrap: wrap;
+}
+
+.btn-sm {
+  padding: var(--mobile-spacing-xs) var(--mobile-spacing-md);
+  font-size: 0.8rem;
+  border-radius: var(--mobile-radius-sm);
+}
+
+.current-match-card:empty::before {
+  content: "No current match";
+  color: var(--maimai-text-secondary);
+  font-style: italic;
+}
+
+/* Queue Container - Mobile Optimized */
+.queue-container {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--mobile-radius-lg);
+  padding: var(--mobile-spacing-lg);
+  box-shadow: var(--mobile-shadow-md);
+  flex: 1;
+}
+
+.queue-title {
+  font-size: 1.1rem; /* Smaller for mobile */
+  font-weight: 600;
+  color: var(--maimai-secondary);
+  margin-bottom: var(--mobile-spacing-md);
+  display: flex;
+  align-items: center;
+}
+
+/* Queue Display - Mobile Layout */
+.queue-display {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mobile-spacing-sm);
+  max-height: 60vh; /* Limit height on mobile */
+  overflow-y: auto; /* Scroll if too many items */
+}
+
+.queue-display:empty::before {
+  content: "Queue is empty";
+  color: var(--maimai-text-secondary);
+  font-style: italic;
+  text-align: center;
+  padding: var(--mobile-spacing-xl);
+}
+
+/* Queue Item - Two Row Mobile Layout */
+.queue-item {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--mobile-radius-md);
+  padding: var(--mobile-spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--mobile-spacing-xs);
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  position: relative;
+}
+
+.queue-item.dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+  z-index: 100;
+}
+
+.queue-item.drop-above {
+  border-top: 3px solid var(--maimai-primary);
+}
+
+.queue-item.drop-below {
+  border-bottom: 3px solid var(--maimai-primary);
+}
+
+.queue-item.vs {
+  border-left: 3px solid var(--maimai-primary);
+}
+
+.queue-item.solo {
+  border-left: 3px solid var(--maimai-accent);
+}
+
+/* First row - Player information */
+.queue-item-row-1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--mobile-spacing-xs) 0;
+}
+
+.player-info-primary {
+  font-weight: 600;
+  color: var(--maimai-text-light);
+  font-size: 1rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.queue-item.vs .player-info-primary {
+  color: var(--maimai-primary);
+}
+
+.queue-item.solo .player-info-primary {
+  color: var(--maimai-accent);
+}
+
+/* Second row - Actions and drag handle */
+.queue-item-row-2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mobile-spacing-sm);
+  position: relative;
+}
+
+.queue-actions-new {
+  display: flex;
+  gap: var(--mobile-spacing-xs);
+  align-items: center;
+}
+
+.btn-queue-action {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--maimai-text-light);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--mobile-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.btn-queue-action:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--maimai-text-light);
+}
+
+.btn-start-compact {
+  background: var(--maimai-success);
+  border-color: var(--maimai-success);
+}
+
+.btn-start-compact:hover {
+  background: #0d9668;
+  border-color: #0d9668;
+}
+
+.btn-remove-compact {
+  background: var(--maimai-danger);
+  border-color: var(--maimai-danger);
+}
+
+.btn-remove-compact:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.btn-edit-compact {
+  background: var(--maimai-primary);
+  border-color: var(--maimai-primary);
+}
+
+.btn-edit-compact:hover {
+  background: #4338ca;
+  border-color: #4338ca;
+}
+
+.drag-handle-new {
+  position: absolute;
+  right: var(--mobile-spacing-xs);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--maimai-text-secondary);
+  padding: var(--mobile-spacing-xs);
+  cursor: grab;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  font-size: 0.8rem;
+}
+
+.drag-handle-new:hover {
+  opacity: 1;
+}
+
+.drag-handle-new:active {
+  cursor: grabbing;
+}
+
+.queue-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Floating Action Buttons - Mobile Optimized */
+.fab-container {
+  position: fixed;
+  bottom: var(--mobile-spacing-lg);
+  right: var(--mobile-spacing-lg);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mobile-spacing-md); /* 16px spacing between FABs */
+}
+
+.fab-btn {
+  width: 56px; /* Touch-friendly size */
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  box-shadow: var(--mobile-shadow-lg);
+  transition: all 0.3s ease;
+  /* Remove default button margins */
+  margin: 0;
+}
+
+.fab-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12px 20px -2px rgba(0, 0, 0, 0.3);
+}
+
+/* Individual FAB styling */
+#help-btn {
+  background: var(--maimai-secondary);
+  border-color: var(--maimai-secondary);
+}
+
+#help-btn:hover {
+  background: #7c3aed;
+  border-color: #7c3aed;
+}
+
+#credits-btn {
+  background: var(--maimai-text-secondary);
+  border-color: var(--maimai-text-secondary);
+  color: var(--maimai-dark);
+}
+
+#credits-btn:hover {
+  background: #64748b;
+  border-color: #64748b;
+}
+
+#add-match-btn {
+  background: var(--maimai-primary);
+  border-color: var(--maimai-primary);
+}
+
+#add-match-btn:hover {
+  background: #4338ca;
+  border-color: #4338ca;
+}
+
+/* Modal Styling - Mobile Optimized */
+.modal-dialog {
+  margin: var(--mobile-spacing-sm); /* Full width on mobile */
+}
+
+.modal-content {
+  background: var(--maimai-dark-secondary);
+  color: var(--maimai-text-light);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--mobile-radius-lg);
+}
+
+.modal-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: var(--mobile-spacing-md);
+}
+
+.modal-body {
+  padding: var(--mobile-spacing-md);
+}
+
+.modal-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: var(--mobile-spacing-md);
+}
+
+.form-control {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--maimai-text-light);
+  border-radius: var(--mobile-radius-md);
+  padding: var(--mobile-spacing-sm) var(--mobile-spacing-md);
+  font-size: 1rem; /* Prevent zoom on iOS */
+}
+
+.form-control:focus {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--maimai-primary);
+  color: var(--maimai-text-light);
+  box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+}
+
+.form-control::placeholder {
+  color: var(--maimai-text-secondary);
+  opacity: 0.8;
+  font-style: italic;
+}
+
+.form-text {
+  color: var(--maimai-text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.form-check-input:checked {
+  background-color: var(--maimai-primary);
+  border-color: var(--maimai-primary);
+}
+
+.form-label {
+  color: var(--maimai-text-light);
+  font-size: 0.9rem;
+  margin-bottom: var(--mobile-spacing-xs);
+}
+
+/* Animation Classes */
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus Styles - Touch Friendly */
+.btn:focus,
+.form-control:focus,
+.form-check-input:focus {
+  outline: 2px solid var(--maimai-primary);
+  outline-offset: 2px;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  :root {
+    --maimai-text-secondary: var(--maimai-text-light);
+  }
+
+  .queue-item {
+    border-width: 2px;
+  }
+
+  .btn-queue-action {
+    border-width: 2px;
+  }
+}
+
+/* MOBILE ONLY - No desktop breakpoints needed */
+/* This design is optimized exclusively for mobile portrait phones */
+/* No larger screen considerations - pure mobile experience */
