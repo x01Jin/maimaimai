@@ -15,10 +15,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const uiDisplay = new UIDisplay(queueManager, queueStorage);
 
   // Load persisted data
-  const savedQueue = queueStorage.loadQueue();
-  if (savedQueue && savedQueue.length > 0) {
-    queueManager.loadQueue(savedQueue);
+  const savedData = queueStorage.loadQueue();
+  if (savedData) {
+    // Load the queue array if it exists and has items
+    if (savedData.queue && savedData.queue.length > 0) {
+      queueManager.loadQueue(savedData.queue);
+    }
+
+    // Load the current match if it exists
+    if (savedData.currentMatch) {
+      queueManager.setCurrentMatch(savedData.currentMatch);
+    }
+
+    // Render the UI
     uiDisplay.renderQueue();
+    uiDisplay.renderCurrentMatch();
   }
 
   // Set up event listeners
@@ -50,19 +61,28 @@ function setupEventListeners(queueManager, queueStorage, uiDisplay) {
   document.addEventListener("queueUpdated", () => {
     uiDisplay.renderQueue();
     uiDisplay.renderCurrentMatch();
-    queueStorage.saveQueue(queueManager.getQueue());
+    queueStorage.saveQueue(
+      queueManager.getQueue(),
+      queueManager.getCurrentMatch()
+    );
   });
 
   document.addEventListener("matchStarted", () => {
     uiDisplay.renderCurrentMatch();
     uiDisplay.renderQueue();
-    queueStorage.saveQueue(queueManager.getQueue());
+    queueStorage.saveQueue(
+      queueManager.getQueue(),
+      queueManager.getCurrentMatch()
+    );
   });
 
   document.addEventListener("matchRemoved", () => {
     uiDisplay.renderCurrentMatch();
     uiDisplay.renderQueue();
-    queueStorage.saveQueue(queueManager.getQueue());
+    queueStorage.saveQueue(
+      queueManager.getQueue(),
+      queueManager.getCurrentMatch()
+    );
   });
 }
 

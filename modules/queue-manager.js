@@ -162,6 +162,26 @@ export class QueueManager {
   }
 
   /**
+   * Set the current match
+   * @param {Object|null} match - Match object or null to clear current match
+   */
+  setCurrentMatch(match) {
+    if (match === null) {
+      this.currentMatch = null;
+      this.emit("matchStarted");
+      return;
+    }
+
+    // Validate match object
+    if (!this.validateMatch(match)) {
+      throw new Error("Invalid match object");
+    }
+
+    this.currentMatch = { ...match };
+    this.emit("matchStarted");
+  }
+
+  /**
    * Clear all queue data
    */
   clearQueue() {
