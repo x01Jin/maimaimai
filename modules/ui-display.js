@@ -204,9 +204,6 @@ export class UIDisplay {
 
     // Add event listeners to queue items
     this.addQueueItemListeners();
-
-    // Add drag and drop listeners
-    this.addDragAndDropListeners();
   }
 
   /**
@@ -263,8 +260,17 @@ export class UIDisplay {
                <i class="fas fa-trash"></i>
              </button>
            </div>
-           <div class="drag-handle-new" title="Drag to reorder">
-             <i class="fas fa-grip-vertical"></i>
+           <div class="reorder-buttons">
+             <button class="btn btn-sm btn-outline-secondary reorder-btn" data-action="move-up" data-match-id="${
+               match.id
+             }" title="Move up">
+               <i class="fas fa-chevron-up"></i>
+             </button>
+             <button class="btn btn-sm btn-outline-secondary reorder-btn" data-action="move-down" data-match-id="${
+               match.id
+             }" title="Move down">
+               <i class="fas fa-chevron-down"></i>
+             </button>
            </div>
          </div>
        </div>
@@ -315,141 +321,6 @@ export class UIDisplay {
   }
 
   /**
-   * Add drag and drop event listeners
-   * im so shit at this lmao, there's even no animations
-   */
-  addDragAndDropListeners() {
-    const queueDisplayEl = this.elements.queueDisplay;
-    if (!queueDisplayEl) return;
-
-    // Drag start
-    queueDisplayEl.addEventListener("dragstart", (e) => {
-      const queueItem = e.target.closest(".queue-item");
-      if (!queueItem) return;
-
-      queueItem.classList.add("dragging");
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", queueItem.dataset.matchId);
-
-      // Add visual feedback
-      this.showDragPreview(queueItem);
-    });
-
-    // Drag end
-    queueDisplayEl.addEventListener("dragend", (e) => {
-      const queueItem = e.target.closest(".queue-item");
-      if (!queueItem) return;
-
-      queueItem.classList.remove("dragging");
-      this.hideDragPreview();
-    });
-
-    // Drag over
-    queueDisplayEl.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-
-      const queueItem = e.target.closest(".queue-item");
-      if (!queueItem || queueItem.classList.contains("dragging")) return;
-
-      // Show drop indicator
-      this.showDropIndicator(e, queueItem);
-    });
-
-    // Drag leave
-    queueDisplayEl.addEventListener("dragleave", (e) => {
-      const queueItem = e.target.closest(".queue-item");
-      if (!queueItem) return;
-
-      // Hide drop indicator if leaving this item
-      if (!e.relatedTarget || !queueItem.contains(e.relatedTarget)) {
-        this.hideDropIndicator(queueItem);
-      }
-    });
-
-    // Drop
-    queueDisplayEl.addEventListener("drop", (e) => {
-      e.preventDefault();
-
-      const draggedMatchId = e.dataTransfer.getData("text/plain");
-      const dropTarget = e.target.closest(".queue-item");
-
-      if (!dropTarget || !draggedMatchId) return;
-
-      this.hideDropIndicator(dropTarget);
-
-      // Don't do anything if dropping on itself
-      if (dropTarget.dataset.matchId === draggedMatchId) return;
-
-      // Calculate new position based on drop location
-      const rect = dropTarget.getBoundingClientRect();
-      const midpoint = rect.top + rect.height / 2;
-      const newPosition =
-        e.clientY <= midpoint
-          ? this.getMatchPosition(dropTarget.dataset.matchId)
-          : this.getMatchPosition(dropTarget.dataset.matchId) + 1;
-
-      // Move the match in the queue
-      if (this.queueManager.moveMatch(draggedMatchId, newPosition)) {
-        this.showToast("Queue reordered");
-      }
-    });
-  }
-
-  /**
-   * Show drag preview
-   * @param {Element} queueItem - The item being dragged
-   */
-  showDragPreview(queueItem) {
-    const preview = document.createElement("div");
-    preview.className = "drag-preview";
-    preview.innerHTML = queueItem.innerHTML;
-    preview.style.cssText = `
-      position: absolute;
-      top: -1000px;
-      opacity: 0.8;
-      transform: rotate(5deg);
-      z-index: 1000;
-      pointer-events: none;
-      width: ${queueItem.offsetWidth}px;
-    `;
-    document.body.appendChild(preview);
-    this.dragPreview = preview;
-  }
-
-  /**
-   * Hide drag preview
-   */
-  hideDragPreview() {
-    if (this.dragPreview) {
-      this.dragPreview.remove();
-      this.dragPreview = null;
-    }
-  }
-
-  /**
-   * Show drop indicator
-   * @param {Event} e - Drag event
-   * @param {Element} queueItem - Target queue item
-   */
-  showDropIndicator(e, queueItem) {
-    const rect = queueItem.getBoundingClientRect();
-    const midpoint = rect.top + rect.height / 2;
-    const isAbove = e.clientY <= midpoint;
-
-    queueItem.classList.remove("drop-above", "drop-below");
-    queueItem.classList.add(isAbove ? "drop-above" : "drop-below");
-  }
-
-  /**
-   * Hide drop indicator
-   * @param {Element} queueItem - Target queue item
-   */
-  hideDropIndicator(queueItem) {
-    queueItem.classList.remove("drop-above", "drop-below");
-  }
-
-  /**
    * Get position of match in queue
    * @param {string} matchId - Match ID
    * @returns {number} Position (1-based)
@@ -467,14 +338,20 @@ export class UIDisplay {
     if (!button) return;
 
     const matchId = button.dataset.matchId;
+    const action = button.dataset.action;
+
     if (!matchId) return;
 
-    if (button.classList.contains("btn-start")) {
+    if (button.classList.contains("btn-start-compact")) {
       this.handleStartMatch(matchId);
-    } else if (button.classList.contains("btn-remove")) {
+    } else if (button.classList.contains("btn-remove-compact")) {
       this.handleRemoveMatch(matchId);
-    } else if (button.classList.contains("btn-edit")) {
+    } else if (button.classList.contains("btn-edit-compact")) {
       this.handleEditMatch(matchId);
+    } else if (action === "move-up") {
+      this.handleMoveUp(matchId);
+    } else if (action === "move-down") {
+      this.handleMoveDown(matchId);
     }
   }
 
@@ -540,6 +417,36 @@ export class UIDisplay {
     if (confirm("Cancel this match and return to queue?")) {
       this.queueManager.cancelCurrentMatch();
       this.showToast("Match cancelled and returned to queue");
+    }
+  }
+
+  /**
+   * handle move match up in queue
+   * credits to kuro for this sht
+   * @param {string} matchId - match ID to move up
+   */
+  handleMoveUp(matchId) {
+    const currentPosition = this.queueManager.getMatchPosition(matchId);
+    if (currentPosition <= 1) return; // already at the top
+
+    const newPosition = currentPosition - 1;
+    if (this.queueManager.moveMatch(matchId, newPosition)) {
+      this.showToast("Match moved up");
+    }
+  }
+
+  /**
+   * handle move match down in queue
+   * @param {string} matchId - match ID to move down
+   */
+  handleMoveDown(matchId) {
+    const currentPosition = this.queueManager.getMatchPosition(matchId);
+    const queueLength = this.queueManager.getQueue().length;
+    if (currentPosition >= queueLength) return; // already at the bottom
+
+    const newPosition = currentPosition + 1;
+    if (this.queueManager.moveMatch(matchId, newPosition)) {
+      this.showToast("Match moved down");
     }
   }
 

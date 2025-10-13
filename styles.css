@@ -1,4 +1,8 @@
-/* maimaimai - MOBILE ONLY (Portrait Phone Design) */
+/* maimaimai - MOBILE ONLY (Portrait Phone Design) 
+ * i admit i used some AI on this,
+ * im sht on front end design anyway 💀 and AI can do it better than me
+ * credits to grok code fast 1 model i guess
+ */
 
 /* CSS Custom Properties for Maimai Theme */
 :root {
@@ -218,20 +222,6 @@ body {
   position: relative;
 }
 
-.queue-item.dragging {
-  opacity: 0.5;
-  transform: rotate(2deg);
-  z-index: 100;
-}
-
-.queue-item.drop-above {
-  border-top: 3px solid var(--maimai-primary);
-}
-
-.queue-item.drop-below {
-  border-bottom: 3px solid var(--maimai-primary);
-}
-
 .queue-item.vs {
   border-left: 3px solid var(--maimai-primary);
 }
@@ -333,25 +323,37 @@ body {
   border-color: #4338ca;
 }
 
-.drag-handle-new {
-  position: absolute;
-  right: var(--mobile-spacing-xs);
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--maimai-text-secondary);
-  padding: var(--mobile-spacing-xs);
-  cursor: grab;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
-  font-size: 0.8rem;
+.reorder-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
 }
 
-.drag-handle-new:hover {
-  opacity: 1;
+.reorder-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--maimai-text-light);
+  width: 24px;
+  height: 20px;
+  border-radius: var(--mobile-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  transition: all 0.2s ease;
+  padding: 0;
+  cursor: pointer;
 }
 
-.drag-handle-new:active {
-  cursor: grabbing;
+.reorder-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--maimai-text-light);
+}
+
+.reorder-btn:active {
+  transform: scale(0.95);
 }
 
 .queue-item:hover {
