@@ -8,14 +8,10 @@ A mobile-first web application for managing player queues in maimai arcade rhyth
   </a>
   <br>
   <br>
-  <img src="https://img.shields.io/badge/maimai-Queue%20Manager-orange" alt="maimai Queue Manager" />
-  <br>
-  <img src="https://img.shields.io/badge/Mobile-First-yellow" alt="Mobile" />
-  <br>
-  <img src="https://img.shields.io/badge/Vanilla%20JS-ES6-blue" alt="JavaScript" />
-  <br>
-  <img src="https://img.shields.io/badge/Bootstrap-5.3.0-purple" alt="Bootstrap" />
-</p>
+  <img src="https://img.shields.io/badge/maimai-Queue%20Manager-orange" alt="maimai Queue Manager" style="margin:0 8px;" />
+  <img src="https://img.shields.io/badge/Mobile-First-yellow" alt="Mobile" style="margin:0 8px;" />
+  <img src="https://img.shields.io/badge/Vanilla%20JS-ES6-blue" alt="JavaScript" style="margin:0 8px;" />
+  <img src="https://img.shields.io/badge/Bootstrap-5.3.0-purple" alt="Bootstrap" style="margin:0 8px;" />
 
 ## 🎮 Overview
 
@@ -95,21 +91,6 @@ Perfect for arcade gatherings, tournaments, or casual play sessions where multip
 
 ## 🏗️ Architecture
 
-### Project Structure
-
-```structure
-maimaimai/
-├── index.html          # Main HTML file
-├── index.js            # Application entry point and event handling
-├── styles.css          # Custom styling and mobile optimizations
-├── modules/
-│   ├── queue-manager.js    # Core queue business logic
-│   ├── queue-storage.js    # Local storage management
-│   └── ui-display.js       # UI rendering and interaction
-├── todo.md             # Development planning and feature roadmap
-└── README.md           # This file
-```
-
 ### Module Overview
 
 #### QueueManager (`modules/queue-manager.js`)
@@ -146,32 +127,6 @@ maimaimai/
 - **Storage**: Browser Local Storage API
 - **Architecture**: Modular ES6 modules
 
-## 🔧 Development
-
-### Local Development Setup
-
-1. **Clone the repository**
-
-   ```bash
-   git clone <your-repo-url>
-   cd maimaimai
-   ```
-
-2. **Start a local server** (choose one method):
-
-   ```bash
-   # Using Python
-   python -m http.server 8000
-
-   # Using Node.js
-   npx serve .
-
-   # Using PHP
-   php -S localhost:8000
-   ```
-
-3. **Open in browser**: Navigate to `http://localhost:8000`
-
 ### Code Organization
 
 The application follows a modular architecture:
@@ -193,14 +148,6 @@ The application follows a modular architecture:
 ### Arcade Sessions
 
 Perfect for maimai arcade gatherings where multiple players share a single cabinet. Players can line up and wait their turn in an organized manner.
-
-### Tournaments
-
-Useful for organizing small-scale maimai tournaments or competitions with structured match progression.
-
-### Practice Sessions
-
-Great for practice sessions where players want to take turns and track who's next without confusion.
 
 ## 🤝 Contributing
 
