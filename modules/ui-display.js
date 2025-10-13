@@ -2,7 +2,7 @@
  * UIDisplay - Handles UI rendering and user interactions for maimai queue
  * Mobile-only responsive display management
  * long ass script it made me fckin die
- * thanks for help zzzeus you're a legend
+ * thanks for help zzzeus go to sleep
  */
 
 export class UIDisplay {

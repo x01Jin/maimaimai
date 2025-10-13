@@ -1,6 +1,9 @@
 /**
  * QueueStorage - Handles local storage persistence for maimai queue
  * misskonasiya
+ * the mf(16stack) suggested this so i stole his code
+ * not sorry blud
+ * Kuro helped with some validation logic too
  */
 
 export class QueueStorage {
@@ -179,6 +182,7 @@ export class QueueStorage {
 
   /**
    * Validate saved data structure
+   * Kuro's part
    * @param {Object} data - Data to validate
    * @returns {boolean} True if valid
    */

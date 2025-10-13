@@ -1,6 +1,7 @@
 /**
  * QueueManager - Handles queue operations for maimai matches
  * sanaol may ka match
+ * credits to genezis the help is actually helpful
  */
 
 export class QueueManager {
