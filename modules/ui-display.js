@@ -607,6 +607,15 @@ export class UIDisplay {
       confirmEditBtn.addEventListener("click", () => {
         this.handleEditConfirm(match.id);
       });
+
+      // Set up event listener for modal hide (both cancel and confirm)
+      editModal.addEventListener("hidden.bs.modal", () => {
+        // Clean up backdrop and body state
+        document.querySelectorAll(".modal-backdrop").forEach((b) => b.remove());
+        document.body.classList.remove("modal-open");
+        document.body.style.overflow = "";
+        document.body.style.paddingRight = "";
+      });
     }
 
     // Populate modal with current match data
@@ -662,7 +671,8 @@ export class UIDisplay {
     if (this.queueManager.updateMatch(matchId, { type: matchType, players })) {
       // Close modal
       const modal = bootstrap.Modal.getInstance(editModal);
-      modal.hide();
+      if (modal) modal.hide();
+
       this.showToast("Match updated successfully");
     } else {
       this.showToast("Failed to update match");
