@@ -8,7 +8,7 @@
 
 export class QueueStorage {
   constructor() {
-    this.STORAGE_KEY = "maimai-queue-data";
+    this.STORAGE_KEY = "maimaimai-data";
     this.MAX_STORAGE_AGE = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
   }
 
@@ -113,11 +113,7 @@ export class QueueStorage {
   clearOldData() {
     try {
       // Clear any old storage keys that might be taking up space
-      const keysToCheck = [
-        "maimai-queue",
-        "maimai-queue-v1",
-        "maimai-current-match",
-      ];
+      const keysToCheck = ["maimaimai", "maimaimai-v1", "maimai-current-match"];
 
       keysToCheck.forEach((key) => {
         if (localStorage.getItem(key)) {

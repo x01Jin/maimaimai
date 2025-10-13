@@ -98,7 +98,7 @@ Perfect for arcade gatherings, tournaments, or casual play sessions where multip
 ### Project Structure
 
 ```structure
-maimai-queue/
+maimaimai/
 ├── index.html          # Main HTML file
 ├── index.js            # Application entry point and event handling
 ├── styles.css          # Custom styling and mobile optimizations
@@ -154,7 +154,7 @@ maimai-queue/
 
    ```bash
    git clone <your-repo-url>
-   cd maimai-queue
+   cd maimaimai
    ```
 
 2. **Start a local server** (choose one method):
