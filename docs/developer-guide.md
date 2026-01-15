@@ -51,3 +51,24 @@ When adding new actions:
     - Test **Host Transfer** by having the host explicitly pass the role.
     - Test **Host Failure** by closing the host tab abruptly.
     - Test **Rejoining** by having a host leave and try to join again immediately.
+
+## Deployment (GitHub Pages)
+
+This repository is set up to deploy a **project site** to GitHub Pages (e.g. <https://x01jin.github.io/maimaimai>).
+
+Quick steps:
+
+1. Ensure `homepage` in `package.json` is set to `https://<your-username>.github.io/<repo-name>` (already set for `x01jin/maimaimai`).
+2. Install the dev dependency: `npm install --save-dev gh-pages`.
+3. Build and deploy:
+
+   - `npm run predeploy` (or `npm run build`)
+   - `npm run deploy` (pushes the `dist` folder to the `gh-pages` branch)
+
+Notes:
+
+- `vite.config.ts` has `base` configured to `'/maimaimai/'` so static assets resolve correctly on GitHub Pages.
+- For a user/org site (`username.github.io`), set `base` to `'/'` and use the repository name accordingly.
+- The deployment will publish to the `gh-pages` branch; you can configure the GitHub Pages source in the repository settings if necessary.
+
+---
