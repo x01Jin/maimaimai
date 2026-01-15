@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>MaiQueue</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     /* Hide scrollbar for Chrome, Safari and Opera */
     .no-scrollbar::-webkit-scrollbar {
@@ -32,19 +31,21 @@
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "peerjs": "https://esm.sh/peerjs@^1.5.5"
+    "react-dom": "https://esm.sh/react-dom@^19.2.3?deps=react@^19.2.3",
+    "react-dom/client": "https://esm.sh/react-dom@^19.2.3/client?deps=react@^19.2.3",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0?deps=react@^19.2.3",
+    "peerjs": "https://esm.sh/peerjs@^1.5.5",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "framer-motion": "https://esm.sh/framer-motion@11.0.3?deps=react@^19.2.3"
   }
 }
 </script>
-  <link rel="stylesheet" href="/index.css">
 </head>
 
 <body>
   <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
+  <script type="module" src="./index.tsx"></script>
 </body>
 
 </html>

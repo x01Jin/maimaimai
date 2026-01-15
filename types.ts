@@ -1,3 +1,4 @@
+
 export interface Player {
   id: string; // The Peer ID (changes on reconnect)
   uuid: string; // Persistent User ID
@@ -27,7 +28,8 @@ export interface Vote {
 
 export interface ChatMessage {
   id: string;
-  senderId: string;
+  senderId: string; // Peer ID
+  senderUuid?: string; // Persistent UUID
   senderName: string;
   content: string;
   timestamp: number;
@@ -38,26 +40,35 @@ export interface GameState {
   players: Player[];
   queue: QueueEntry[];
   currentSession: QueueEntry | null;
+  finishApprovals: string[]; // List of players in current session who confirmed finish
   messages: ChatMessage[];
   sessionName: string;
   activeVote: Vote | null;
 }
 
+export interface AppNotification {
+  id: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  duration?: number;
+}
+
 // Actions sent from Client to Host
-export type ClientAction = 
+export type ClientAction =
   | { type: 'JOIN_SESSION'; payload: { name: string; uuid: string } }
   | { type: 'JOIN_QUEUE_MATCH'; payload: { playerId: string } }
   | { type: 'JOIN_QUEUE_PARTNER'; payload: { playerId: string; partnerId: string } }
   | { type: 'REQUEST_SOLO'; payload: { playerId: string; playerName: string } }
   | { type: 'CAST_VOTE'; payload: { voteId: string; playerId: string; approve: boolean } }
-  | { type: 'LEAVE_QUEUE'; payload: { playerId: string } } 
+  | { type: 'LEAVE_QUEUE'; payload: { playerId: string; queueId: string } }
   | { type: 'REMOVE_FROM_QUEUE'; payload: { queueId: string } }
-  | { type: 'FINISH_TURN'; payload: { sessionId: string } }
-  | { type: 'SEND_CHAT'; payload: { content: string; senderId: string; senderName: string } }
+  | { type: 'REORDER_QUEUE'; payload: { queueIds: string[] } }
+  | { type: 'FINISH_TURN'; payload: { sessionId: string; playerId: string } }
+  | { type: 'SEND_CHAT'; payload: { content: string; senderId: string; senderUuid: string; senderName: string } }
   | { type: 'ACCEPT_HOST_MIGRATION'; payload: { newCode: string } }; // Client tells Host "I am ready"
 
 // Message sent from Host to Client
-export type HostMessage = 
+export type HostMessage =
   | { type: 'SYNC_STATE'; payload: GameState }
   | { type: 'KICK'; payload: { reason: string } }
   | { type: 'PREPARE_MIGRATION'; payload: { state: GameState } } // Host tells Target "Take over"
@@ -68,5 +79,6 @@ export enum ConnectionStatus {
   CONNECTING = 'CONNECTING',
   CONNECTED = 'CONNECTED',
   ERROR = 'ERROR',
-  MIGRATING = 'MIGRATING'
+  MIGRATING = 'MIGRATING',
+  RECONNECTING = 'RECONNECTING'
 }

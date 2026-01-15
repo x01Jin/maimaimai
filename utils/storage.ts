@@ -1,3 +1,5 @@
+import { GameState } from "../types";
+
 interface UserIdentity {
   uuid: string;
   name: string;
@@ -11,6 +13,23 @@ export interface RecentSession {
 
 const KEY_IDENTITY = 'maiqueue_identity';
 const KEY_HISTORY = 'maiqueue_history';
+const KEY_HOST_STATE = 'maiqueue_host_state_';
+
+export const generateUUID = (): string => {
+  // Fallback for non-secure contexts (HTTP) where crypto.randomUUID is undefined
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    try {
+      return crypto.randomUUID();
+    } catch (e) {
+      // Fallback if it fails for some reason
+    }
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 
 export const getIdentity = (): UserIdentity => {
   try {
@@ -24,7 +43,7 @@ export const getIdentity = (): UserIdentity => {
 
   // Generate new
   const newId = {
-    uuid: crypto.randomUUID(),
+    uuid: generateUUID(),
     name: ''
   };
   // Don't save yet until name is set? Or save immediately.
@@ -60,4 +79,32 @@ export const addRecentSession = (code: string) => {
   };
   const updated = [newEntry, ...filtered].slice(0, 10); // Keep last 10
   localStorage.setItem(KEY_HISTORY, JSON.stringify(updated));
+};
+
+export const removeRecentSession = (code: string) => {
+  const history = getRecentSessions();
+  const updated = history.filter(h => h.code !== code);
+  localStorage.setItem(KEY_HISTORY, JSON.stringify(updated));
+};
+
+// Host State Persistence
+export const saveHostState = (code: string, state: GameState) => {
+  try {
+    localStorage.setItem(KEY_HOST_STATE + code, JSON.stringify(state));
+  } catch (e) {
+    console.error("Failed to save host state", e);
+  }
+};
+
+export const loadHostState = (code: string): GameState | null => {
+  try {
+    const stored = localStorage.getItem(KEY_HOST_STATE + code);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const clearHostState = (code: string) => {
+  localStorage.removeItem(KEY_HOST_STATE + code);
 };
