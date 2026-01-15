@@ -1,0 +1,5 @@
+{
+  "name": "MaiQueue",
+  "description": "A mobile-first, P2P queue management tool for Maimai arcade sessions. Host or join a local room to manage player rotation and chat in real-time.",
+  "requestFramePermissions": []
+}
