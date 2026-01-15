@@ -207,10 +207,14 @@ export const usePeerSession = (): UsePeerSessionReturn => {
         // If I am the target, I might have triggered this via passHost, 
         // but I should still process it to confirm I am definitely the host now.
 
-        setGameState(prev => ({
-          ...prev,
-          players: prev.players.map(p => ({ ...p, isHost: p.id === newHostId }))
-        }));
+        setGameState(prev => {
+          const newHostName = prev.players.find(p => p.id === newHostId)?.name || 'Unknown';
+          return {
+            ...prev,
+            players: prev.players.map(p => ({ ...p, isHost: p.id === newHostId })),
+            messages: [...prev.messages, createSystemMessage(`Host role transferred to ${newHostName}`)]
+          };
+        });
         hostPeerIdRef.current = newHostId;
         sessionCodeRef.current = sessionCode;
         lastHostPulseRef.current = Date.now(); // Reset timeout
@@ -349,10 +353,13 @@ export const usePeerSession = (): UsePeerSessionReturn => {
 
     console.log("Promoting self to Host");
 
+    const myName = gameStateRef.current.players.find(p => p.id === myId)?.name || 'Unknown';
+
     // 1. Update State
     const newState = {
       ...gameStateRef.current,
       players: gameStateRef.current.players.map(p => ({ ...p, isHost: p.id === myId })),
+      messages: [...gameStateRef.current.messages, createSystemMessage(`Host migrated to ${myName} (previous host dced)`)],
       version: gameStateRef.current.version + 10 // Jump version to override others
     };
 
@@ -653,10 +660,14 @@ export const usePeerSession = (): UsePeerSessionReturn => {
     lastHostPulseRef.current = Date.now() + 5000;
 
     // Update State locally to reflect new host
-    updateState(prev => ({
-      ...prev,
-      players: prev.players.map(p => ({ ...p, isHost: p.id === targetId }))
-    }));
+    updateState(prev => {
+      const targetName = prev.players.find(p => p.id === targetId)?.name || 'Unknown';
+      return {
+        ...prev,
+        players: prev.players.map(p => ({ ...p, isHost: p.id === targetId })),
+        messages: [...prev.messages, createSystemMessage(`Host role transferred to ${targetName}`)]
+      };
+    });
 
     hostPeerIdRef.current = targetId;
 
