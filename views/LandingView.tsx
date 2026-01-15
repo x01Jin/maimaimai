@@ -101,9 +101,9 @@ export const LandingView: React.FC<LandingViewProps> = ({
                     </div>
                 </div>
                 <h1 className="text-4xl font-black text-white tracking-tight">
-                    Mai<span className="text-cyan-400">Queue</span>
+                    Mai<span className="text-cyan-400">Mai</span>Mai
                 </h1>
-                <p className="text-slate-400 text-lg">Queue management for local sessions</p>
+                <p className="text-slate-400 text-lg">A mamai queueing webapp</p>
             </div>
 
             <div className="space-y-4 w-full">

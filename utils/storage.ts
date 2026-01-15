@@ -11,9 +11,9 @@ export interface RecentSession {
   lastJoined: number;
 }
 
-const KEY_IDENTITY = 'maiqueue_identity';
-const KEY_HISTORY = 'maiqueue_history';
-const KEY_HOST_STATE = 'maiqueue_host_state_';
+const KEY_IDENTITY = 'maimaimai_identity';
+const KEY_HISTORY = 'maimaimai_history';
+const KEY_HOST_STATE = 'maimaimai_host_state_';
 
 export const generateUUID = (): string => {
   // Fallback for non-secure contexts (HTTP) where crypto.randomUUID is undefined

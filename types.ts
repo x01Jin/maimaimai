@@ -6,6 +6,7 @@ export interface Player {
   isHost: boolean;
   isConnected: boolean;
   joinedAt: number;
+  lastSeen?: number; // For heartbeat tracking
 }
 
 export type QueueType = 'SOLO' | 'MATCH' | 'PARTNER';
@@ -44,6 +45,7 @@ export interface GameState {
   messages: ChatMessage[];
   sessionName: string;
   activeVote: Vote | null;
+  version: number; // State version for synchronization
 }
 
 export interface AppNotification {
@@ -53,9 +55,9 @@ export interface AppNotification {
   duration?: number;
 }
 
-// Actions sent from Client to Host
+// Client Actions (Intentions from UI)
 export type ClientAction =
-  | { type: 'JOIN_SESSION'; payload: { name: string; uuid: string } }
+  | { type: 'JOIN_SESSION'; payload: { name: string; uuid: string } } // Used internally on connect
   | { type: 'JOIN_QUEUE_MATCH'; payload: { playerId: string } }
   | { type: 'JOIN_QUEUE_PARTNER'; payload: { playerId: string; partnerId: string } }
   | { type: 'REQUEST_SOLO'; payload: { playerId: string; playerName: string } }
@@ -65,14 +67,16 @@ export type ClientAction =
   | { type: 'REORDER_QUEUE'; payload: { queueIds: string[] } }
   | { type: 'FINISH_TURN'; payload: { sessionId: string; playerId: string } }
   | { type: 'SEND_CHAT'; payload: { content: string; senderId: string; senderUuid: string; senderName: string } }
-  | { type: 'ACCEPT_HOST_MIGRATION'; payload: { newCode: string } }; // Client tells Host "I am ready"
+  | { type: 'UPDATE_PLAYER_STATUS'; payload: { playerId: string; isConnected: boolean } };
 
-// Message sent from Host to Client
-export type HostMessage =
-  | { type: 'SYNC_STATE'; payload: GameState }
-  | { type: 'KICK'; payload: { reason: string } }
-  | { type: 'PREPARE_MIGRATION'; payload: { state: GameState } } // Host tells Target "Take over"
-  | { type: 'REDIRECT'; payload: { newCode: string } }; // Host tells everyone "Go here"
+// Internal P2P Protocol Messages
+export type P2PMessage =
+  | { type: 'HELLO'; payload: { player: Player } } // Initial handshake
+  | { type: 'PEER_DISCOVERY'; payload: { peers: Player[] } } // Sharing known peers
+  | { type: 'SYNC_STATE'; payload: { state: GameState } } // Host broadcasting state
+  | { type: 'ACTION'; payload: { action: ClientAction; from: string } } // Forwarding user intent to host
+  | { type: 'CLAIM_HOST'; payload: { newHostId: string; sessionCode: string } } // Election result
+  | { type: 'HEARTBEAT'; payload: { id: string } }; // Keep-alive
 
 export enum ConnectionStatus {
   IDLE = 'IDLE',

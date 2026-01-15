@@ -1,5 +1,5 @@
 {
-  "name": "maiqueue",
+  "name": "maimaimai",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,7 +13,7 @@
     "react-dom": "^19.2.3",
     "lucide-react": "^0.562.0",
     "peerjs": "^1.5.5",
-    "framer-motion": "11.0.3"
+    "framer-motion": "^11.0.3"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
