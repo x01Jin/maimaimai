@@ -1,11 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { usePeerSession } from './hooks/usePeerSession';
 import { ConnectionStatus, AppNotification } from './types';
-import { Button } from './components/Button';
-import { Modal } from './components/Modal';
-import { ToastContainer } from './components/Toast.tsx';
-import { generateUUID } from './utils/storage';
+import { Button, Modal, ToastContainer } from './components';
+import { generateUUID } from './utils';
 import { Users, LogOut, MessageSquare, ListOrdered } from 'lucide-react';
 
 // Import Views

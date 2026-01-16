@@ -4,11 +4,13 @@ import { Reorder } from 'framer-motion';
 import { Button } from '../components/Button';
 import { Copy, Music, Play, Check, WifiOff, CheckCircle, ListOrdered, GripVertical, X, UserPlus, Users, User } from 'lucide-react';
 import { GameState, QueueEntry, Player } from '../types';
+import { UsePeerSessionReturn } from '../hooks/usePeerSession';
+import { NETWORK_CONFIG } from '../constants';
 
 interface QueueViewProps {
     gameState: GameState;
     myId: string;
-    session: any; // Using explicit any for the hook return type to avoid circular dep complexity, or export the type from hook
+    session: UsePeerSessionReturn;
     isHost: boolean;
 }
 
@@ -26,7 +28,7 @@ export const QueueView: React.FC<QueueViewProps> = ({
     const [localQueue, setLocalQueue] = useState(queue);
 
     // Ref for debouncing reorder
-    const reorderTimeoutRef = useRef<any>(null);
+    const reorderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         // Sync when source changes, unless we are potentially in a drag operation?
@@ -46,8 +48,8 @@ export const QueueView: React.FC<QueueViewProps> = ({
             }
 
             reorderTimeoutRef.current = setTimeout(() => {
-                session.reorderQueue(newOrder.map((q: any) => q.id));
-            }, 500);
+                session.reorderQueue(newOrder.map((q: QueueEntry) => q.id));
+            }, NETWORK_CONFIG.REORDER_DEBOUNCE_MS);
         }
     };
 

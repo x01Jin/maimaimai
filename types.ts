@@ -86,3 +86,25 @@ export enum ConnectionStatus {
   MIGRATING = 'MIGRATING',
   RECONNECTING = 'RECONNECTING'
 }
+
+// PeerJS Type Definitions
+export interface DataConnection {
+  peer: string;
+  open: boolean;
+  send: (data: P2PMessage) => void;
+  on: (event: string, handler: (data: unknown) => void) => void;
+  off: (event: string, handler: (data: unknown) => void) => void;
+  close: () => void;
+}
+
+export interface PeerError {
+  type: string;
+  message?: string;
+}
+
+export interface PeerInstance {
+  id: string;
+  connect: (id: string, options?: { reliable?: boolean }) => DataConnection;
+  on: (event: string, handler: (data: unknown) => void) => void;
+  destroy: () => void;
+}

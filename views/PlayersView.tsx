@@ -3,11 +3,12 @@ import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { Crown, Users } from 'lucide-react';
 import { GameState, Player } from '../types';
+import { UsePeerSessionReturn } from '../hooks/usePeerSession';
 
 interface PlayersViewProps {
     gameState: GameState;
     myId: string;
-    session: any;
+    session: UsePeerSessionReturn;
     isHost: boolean;
 }
 
