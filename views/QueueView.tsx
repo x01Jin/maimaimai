@@ -11,14 +11,14 @@ interface QueueViewProps {
     gameState: GameState;
     myId: string;
     session: UsePeerSessionReturn;
-    isHost: boolean;
+    isMod: boolean;
 }
 
 export const QueueView: React.FC<QueueViewProps> = ({
     gameState,
     myId,
     session,
-    isHost
+    isMod
 }) => {
     const [showJoinOptions, setShowJoinOptions] = useState(false);
     const [partnerSelectMode, setPartnerSelectMode] = useState(false);
@@ -41,7 +41,7 @@ export const QueueView: React.FC<QueueViewProps> = ({
     const handleReorder = (newOrder: QueueEntry[]) => {
         setLocalQueue(newOrder);
 
-        if (isHost) {
+        if (isMod) {
             // Debounce the network call
             if (reorderTimeoutRef.current) {
                 clearTimeout(reorderTimeoutRef.current);
@@ -169,18 +169,18 @@ export const QueueView: React.FC<QueueViewProps> = ({
                                 // User can remove if they are in it (Leave)
                                 // Host can remove if they are NOT in it (Admin remove) or if they ARE in it (Leave)
                                 // UI: Just a button, action determined by membership
-                                const canRemove = isHost || isMeIn;
+                                const canRemove = isMod || isMeIn;
 
                                 return (
                                     <Reorder.Item
                                         key={item.id}
                                         value={item}
-                                        dragListener={isHost}
+                                        dragListener={isMod}
                                         className={`relative flex flex-col p-3 rounded-xl border-l-4 shadow-sm ${getEntryColor(item.type)} ${isMeIn ? 'bg-slate-800' : 'bg-slate-800/50'}`}
                                     >
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="flex items-center gap-2">
-                                                {isHost && <GripVertical size={16} className="text-slate-500 cursor-grab active:cursor-grabbing" />}
+                                                {isMod && <GripVertical size={16} className="text-slate-500 cursor-grab active:cursor-grabbing" />}
                                                 <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center font-bold text-slate-300 text-xs shadow-inner">
                                                     {index + 1}
                                                 </div>
@@ -193,7 +193,7 @@ export const QueueView: React.FC<QueueViewProps> = ({
                                                 <button
                                                     onClick={() => {
                                                         if (isMeIn) session.leaveQueue(item.id);
-                                                        else if (isHost) session.removeFromQueue(item.id);
+                                                        else if (isMod) session.removeFromQueue(item.id);
                                                     }}
                                                     className="p-1 text-slate-500 hover:text-red-400 transition-colors"
                                                 >

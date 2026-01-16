@@ -1,29 +1,33 @@
 # Architecture Overview
 
-## Hybrid P2P Topology
+## Multi-Service Peer P2P Topology
 
-MaiMaiMai employs a sophisticated **Hybrid Star/Mesh** topology over WebRTC (via PeerJS) to balance state consistency with network resilience.
+MaiMaiMai employs a **Multi-Service Peer Mesh** topology over WebRTC (via PeerJS) that provides redundancy and prevents service disruptions through distributed state management.
 
 ### 1. The Beacon (Entry Point)
 
 To solve the discovery problem without a central signaling database:
 
-- The **Active Host** maintains a secondary Peer connection called the **Beacon**.
+- The **Mod** maintains a secondary Peer connection called the **Beacon**.
 - The Beacon ID is deterministic: `mai-q-[CODE]` (e.g., `mai-q-ABCD`).
 - New players connect to this Beacon to perform the initial handshake (`HELLO`).
-- Once connected, the Host sends the joining player a `PEER_DISCOVERY` payload containing the specific Peer IDs of all other participants.
+- Once connected, a service peer sends the joining player a `PEER_DISCOVERY` payload containing the specific Peer IDs of all other participants.
 
-### 2. The Star (State Authority)
+### 2. Service Peers (Distributed Authority)
 
-- The **Host** acts as the single source of truth (Authoritative Server).
-- All `Actions` (Join Queue, Vote, Chat) are sent to the Host via the mesh network.
-- The Host executes the `sessionUtils`, calculates the new state hash, and broadcasts `SYNC_STATE` to all connected peers.
-- Clients blindly accept state updates if the incoming `version` is higher than their local version.
+- **2-3 Service Peers** maintain the authoritative game state (Mod + 1-2 additional peers).
+- The **Mod** (session creator) always acts as a service peer and manages administrative actions (kick, reorder).
+- Additional service peers are selected based on connection quality (latency, jitter, packet loss).
+- Service peers are dynamically updated without disruption as connection quality changes.
+- All `Actions` can be sent to ANY service peer, which processes and broadcasts state updates.
+- Service peers execute `sessionUtils`, calculate the new state hash, and broadcast `SYNC_STATE`.
+- Clients accept state updates from service peers if the incoming `version` is higher.
 
-### 3. The Mesh (Resilience & Recovery)
+### 3. The Mesh (Full Connectivity)
 
-- While the Host is the authority, every peer maintains direct connections to other peers in the swarm.
-- **Mesh Recovery:** When the Host role is transferred, the "Beacon" must be destroyed and recreated by the new Host. To prevent network partitioning during this gap, the old Host (and other clients) aggressively establish direct connections to the New Host's permanent Peer ID.
+- Every peer maintains direct connections to all other peers in the swarm.
+- This full mesh ensures that if one service peer becomes unavailable, others seamlessly continue service.
+- Connection quality metrics are continuously measured via HEARTBEAT/PONG exchanges.
 
 ---
 
@@ -31,33 +35,31 @@ To solve the discovery problem without a central signaling database:
 
 The application state (`GameState`) is an immutable object managed by a Reducer pattern.
 
-- **Versioning:** The state includes a `version` number. This resolves conflict/race conditions by prioritizing the highest version number.
-- **Hashing:** To optimize bandwidth, the host calculates a content hash of the state. `SYNC_STATE` messages are only broadcast if the hash changes.
-- **Persistence:** The Host writes the state to `localStorage` on every update. This allows for session recovery if the Host refreshes their browser.
+- **Versioning:** The state includes a `version` number and `servicePeers` array. This resolves conflict/race conditions by prioritizing the highest version number.
+- **Hashing:** To optimize bandwidth, service peers calculate a content hash of the state. `SYNC_STATE` messages are only broadcast if the hash changes.
+- **Persistence:** The Mod writes the state to `localStorage` on every update. This allows for session recovery if the Mod refreshes their browser.
+- **Service Peer Tracking:** The `servicePeers` array tracks which peers are currently authoritative.
 
 ---
 
-## Host Migration Mechanics
+## Connection Quality Monitoring
 
-The system supports two types of host transitions:
+To maintain optimal service peer selection, the system continuously monitors connection quality:
 
-### 1. Cooperative Transfer (Handoff)
+- **Latency Measurement:** HEARTBEAT messages include timestamps. Recipients respond with PONG containing the original timestamp.
+- **Metrics Tracked:** Latency (avg), jitter (variance), packet loss (estimated).
+- **Quality Score:** Computed from weighted combination of metrics (60% latency, 20% jitter, 20% packet loss).
+- **Selection Algorithm:** Mod is always first service peer. Additional peers selected by best quality scores.
+- **Dynamic Updates:** Service peer list updated every 5 seconds if significant quality improvements detected (>20% threshold).
+- **Seamless Transitions:** Service peer changes occur without disrupting ongoing sessions.
 
-This occurs when the Host explicitly selects a user to take over, or voluntarily leaves the session.
+---
 
-1. **Selection:** Host A selects Player B.
-2. **Broadcast:** Host A broadcasts `CLAIM_HOST` payload identifying Player B.
-3. **Grace Period:** Host A (now a client) enters a "monitoring grace period" (5 seconds) where it ignores heartbeat timeouts from B. This prevents the "Bounce Back" effect where A thinks B is dead before B has fully initialized.
-4. **Beacon Swap:**
-    - Host A destroys the Beacon `mai-q-[CODE]`.
-    - Player B promotes themselves to Host locally and attempts to capture `mai-q-[CODE]`.
-5. **Mesh Repair:** Host A actively connects to Player B's permanent ID to ensure the connection remains alive even after the Beacon link is severed.
+## Mod Transfer
 
-### 2. Failure Recovery (Bully Algorithm)
+The Mod role can be voluntarily transferred for administrative control:
 
-If the Host disconnects unexpectedly (crash, network loss):
-
-1. **Detection:** Clients detect the disconnection via heartbeat timeouts (6s) or socket closure.
-2. **Election:** Clients locally sort the peer list by `joinedAt` timestamp.
-3. **Promotion:** The oldest remaining peer promotes themselves to Host.
-4. **Capture:** The new Host captures the Beacon ID and broadcasts their new status.
+1. **Transfer:** Current Mod selects a connected player.
+2. **Broadcast:** `TRANSFER_MOD` message sent to all peers.
+3. **Update:** All peers update their local state to reflect new Mod.
+4. **Service Peer Adjustment:** New Mod's quality check loop automatically recalculates service peer list.

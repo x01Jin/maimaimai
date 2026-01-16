@@ -9,21 +9,21 @@ interface PlayersViewProps {
     gameState: GameState;
     myId: string;
     session: UsePeerSessionReturn;
-    isHost: boolean;
+    isMod: boolean;
 }
 
 export const PlayersView: React.FC<PlayersViewProps> = ({
     gameState,
     myId,
     session,
-    isHost
+    isMod
 }) => {
-    const [showPassHost, setShowPassHost] = useState(false);
+    const [showTransferMod, setShowTransferMod] = useState(false);
     const players = gameState.players as Player[];
 
     const sortedPlayers = [...players].sort((a, b) => {
-        // 1. Host
-        if (a.isHost !== b.isHost) return a.isHost ? -1 : 1;
+        // 1. Mod
+        if (a.isMod !== b.isMod) return a.isMod ? -1 : 1;
         // 2. Self
         if ((a.id === myId) !== (b.id === myId)) return a.id === myId ? -1 : 1;
         // 3. Connected
@@ -42,11 +42,11 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
                     </p>
                 </div>
                 <div className="flex items-center gap-4">
-                    {isHost && (
+                    {isMod && (
                         <button
-                            onClick={() => setShowPassHost(true)}
+                            onClick={() => setShowTransferMod(true)}
                             className="p-2 bg-slate-700 rounded-full text-yellow-400 hover:bg-slate-600 shadow-sm border border-slate-600"
-                            title="Pass Host"
+                            title="Transfer Mod"
                         >
                             <Crown size={16} />
                         </button>
@@ -66,13 +66,13 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
                             : 'bg-slate-800/30 border-slate-800 opacity-50'
                             }`}
                     >
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-inner ${p.isHost
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-inner ${p.isMod
                             ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-slate-900'
                             : p.id === myId
                                 ? 'bg-gradient-to-br from-cyan-400 to-blue-500 text-slate-900'
                                 : 'bg-slate-700 text-slate-300'
                             }`}>
-                            {p.isHost ? <Crown size={20} /> : p.name.substring(0, 1).toUpperCase()}
+                            {p.isMod ? <Crown size={20} /> : p.name.substring(0, 1).toUpperCase()}
                         </div>
 
                         <div className="flex-1 min-w-0">
@@ -83,9 +83,9 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
                                         You
                                     </span>
                                 )}
-                                {p.isHost && (
+                                {p.isMod && (
                                     <span className="px-1.5 py-0.5 bg-yellow-500/10 text-yellow-400 text-[10px] font-bold uppercase rounded border border-yellow-500/20">
-                                        Host
+                                        Mod
                                     </span>
                                 )}
                             </div>
@@ -105,20 +105,20 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
                 ))}
             </div>
 
-            {/* Pass Host Modal */}
+            {/* Transfer Mod Modal */}
             <Modal
-                isOpen={showPassHost}
-                onClose={() => setShowPassHost(false)}
-                title="Pass Host Role"
-                footer={<Button variant="ghost" onClick={() => setShowPassHost(false)}>Cancel</Button>}
+                isOpen={showTransferMod}
+                onClose={() => setShowTransferMod(false)}
+                title="Transfer Mod Role"
+                footer={<Button variant="ghost" onClick={() => setShowTransferMod(false)}>Cancel</Button>}
             >
                 <div className="space-y-3">
-                    <p className="text-slate-400 text-sm">Select a player to transfer host duties to. You will be disconnected and rejoined as a participant.</p>
+                    <p className="text-slate-400 text-sm">Select a player to transfer mod duties to. You will remain in the session as a regular participant.</p>
                     <div className="max-h-60 overflow-y-auto space-y-2 no-scrollbar">
                         {players.filter((p: Player) => p.id !== myId && p.isConnected).map((p: Player) => (
                             <button
                                 key={p.id}
-                                onClick={() => { session.passHost(p.id); setShowPassHost(false); }}
+                                onClick={() => { session.transferMod(p.id); setShowTransferMod(false); }}
                                 className="w-full p-3 bg-slate-700 hover:bg-slate-600 rounded-xl flex items-center justify-between text-white font-bold"
                             >
                                 {p.name}

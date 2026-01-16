@@ -5,11 +5,15 @@ export const COLORS = {
   maimaiCyan: '#00ffff',
 };
 
-// PeerJS config if needed, passing undefined uses default public cloud
-export const PEER_CONFIG = undefined;
 
-// Network Configuration
+// PeerJS config if needed, passing undefined uses default public cloud
 export const NETWORK_CONFIG = {
+  PEERJS_CONFIG: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ],
+  },
   HEARTBEAT_INTERVAL_MS: 2000,
   HOST_TIMEOUT_MS: 6000,
   BEACON_RETRY_ATTEMPTS: 15,

@@ -10,6 +10,8 @@ export const INITIAL_STATE: GameState = {
     sessionName: '',
     activeVote: null,
     version: 0,
+    servicePeers: [],
+    stateHash: '',
 };
 
 export const createSystemMessage = (content: string): ChatMessage => ({
@@ -27,10 +29,12 @@ export const hashState = (state: GameState): string => {
     const str = JSON.stringify({
         q: state.queue,
         cs: state.currentSession,
-        p: state.players.map(p => ({ id: p.id, c: p.isConnected, h: p.isHost })),
+        fa: state.finishApprovals, // Include finish approvals in hash
+        p: state.players.map(p => ({ id: p.id, c: p.isConnected, m: p.isMod })),
         v: state.activeVote,
         m: state.messages.length, // Include message count to trigger updates on chat
-        l: state.messages.length > 0 ? state.messages[state.messages.length - 1].id : '' // Include last msg ID for robustness
+        l: state.messages.length > 0 ? state.messages[state.messages.length - 1].id : '', // Include last msg ID for robustness
+        sp: state.servicePeers, // Include service peers in hash
     });
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -47,6 +51,7 @@ export const replacePlayerIdInGameState = (state: GameState, oldId: string, newI
 
     return {
         ...state,
+        players: state.players.map(p => p.id === oldId ? { ...p, id: newId } : p),
         queue: state.queue.map(q => ({
             ...q,
             playerIds: replaceIds(q.playerIds)
@@ -61,6 +66,7 @@ export const replacePlayerIdInGameState = (state: GameState, oldId: string, newI
             requesterId: state.activeVote.requesterId === oldId ? newId : state.activeVote.requesterId,
             approvals: replaceIds(state.activeVote.approvals)
         } : null,
+        servicePeers: replaceIds(state.servicePeers),
         // Bump version on ID swap to force sync
         version: state.version + 1
     };
@@ -118,7 +124,7 @@ export const sessionUtils = (state: GameState, action: ClientAction, peerId: str
                     id: peerId,
                     uuid: uuid,
                     name: name,
-                    isHost: false,
+                    isMod: false,
                     isConnected: true,
                     joinedAt: Date.now(),
                     lastSeen: Date.now()
@@ -191,7 +197,7 @@ export const sessionUtils = (state: GameState, action: ClientAction, peerId: str
         case 'REQUEST_SOLO': {
             if (nextState.activeVote) return state; // No change, keep old version
 
-            const requester = nextState.players.find(p => p.id === action.payload.playerId)?.name || 'Unknown';
+            const requesterName = action.payload.playerName;
             const onlinePlayers = nextState.players.filter(p => p.isConnected).length;
 
             // Auto-approve if small group
@@ -204,7 +210,7 @@ export const sessionUtils = (state: GameState, action: ClientAction, peerId: str
                         playerIds: [action.payload.playerId],
                         timestamp: Date.now()
                     }],
-                    messages: [...nextState.messages, createSystemMessage(`${requester} joined Solo queue (Auto-approved).`)]
+                    messages: [...nextState.messages, createSystemMessage(`${requesterName} joined Solo queue (Auto-approved).`)]
                 };
             }
 
@@ -214,12 +220,12 @@ export const sessionUtils = (state: GameState, action: ClientAction, peerId: str
                 activeVote: {
                     id: generateUUID(),
                     requesterId: action.payload.playerId,
-                    requesterName: action.payload.playerName || requester,
+                    requesterName: requesterName,
                     approvals: [],
                     required,
                     createdAt: Date.now()
                 },
-                messages: [...nextState.messages, createSystemMessage(`${requester} requested Solo play.`)]
+                messages: [...nextState.messages, createSystemMessage(`${requesterName} requested Solo play.`)]
             };
         }
 
@@ -300,7 +306,7 @@ export const sessionUtils = (state: GameState, action: ClientAction, peerId: str
             return {
                 ...nextState,
                 queue: nextState.queue.filter(q => q.id !== action.payload.queueId),
-                messages: [...nextState.messages, createSystemMessage('Host removed an entry from the queue.')]
+                messages: [...nextState.messages, createSystemMessage('Mod removed an entry from the queue.')]
             };
 
         case 'REORDER_QUEUE': {
@@ -325,6 +331,16 @@ export const sessionUtils = (state: GameState, action: ClientAction, peerId: str
                     content: action.payload.content,
                     timestamp: Date.now()
                 }]
+            };
+        }
+        
+        case 'TRANSFER_MOD': {
+            const { targetId } = action.payload;
+            const targetName = nextState.players.find(p => p.id === targetId)?.name || 'Unknown';
+            return {
+                ...nextState,
+                players: nextState.players.map(p => ({ ...p, isMod: p.id === targetId })),
+                messages: [...nextState.messages, createSystemMessage(`Mod role transferred to ${targetName}.`)]
             };
         }
 

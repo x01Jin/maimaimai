@@ -21,13 +21,13 @@ This hook encapsulates the complex distributed system logic.
 
 To handle the asynchronous nature of WebRTC without stale closures, the hook relies heavily on `useRef`:
 
-- `pendingHostIdRef`: Used during host transfer. If we are passing the host to Peer B, we temporarily ignore "disconnect" events from Peer B. This is because destroying the Beacon (shared connection) often triggers a disconnect event, but we want to maintain the session via the direct mesh connection.
-- `lastHostPulseRef`: Tracks the timestamp of the last message from the Host. Used by the "Monitor Loop" to trigger elections if the host goes silent for >6 seconds.
+- `peerMetricsRef`: Stores connection quality metrics (latency, jitter, packet loss) for all peers.
+- `modPeerIdRef`: Tracks the current Mod's peer ID for reference.
 - `gameStateRef`: Keeps a reference to the latest state for use inside event listeners (like `peer.on('data')`) where the React closure might otherwise be stale.
 
 #### Connection Retry Logic
 
-The `joinSession` function implements an exponential backoff retry mechanism. This is critical during Host Migration: if a user tries to join exactly when the Beacon is being swapped from Old Host to New Host, the connection might fail. The retry logic ensures they eventually connect once the New Host captures the Beacon.
+The `joinSession` function implements an exponential backoff retry mechanism. This ensures reliable connection even if the Beacon is temporarily unavailable.
 
 ### `sessionUtils` (in `sessionUtils.ts`)
 
@@ -48,9 +48,9 @@ When adding new actions:
 1. **Stateless UI:** Keep views (QueueView, PlayersView) as stateless as possible; rely on the `gameState` passed from the hook.
 2. **Protocol Changes:** If you modify `types.ts`, ensure backward compatibility or increment the protocol version if breaking changes are made.
 3. **Testing:**
-    - Test **Host Transfer** by having the host explicitly pass the role.
-    - Test **Host Failure** by closing the host tab abruptly.
-    - Test **Rejoining** by having a host leave and try to join again immediately.
+    - Test **Service Peer Redundancy** by simulating poor connection from the Mod and verifying other service peers maintain service.
+    - Test **Mod Transfer** by transferring the Mod role between players.
+    - Test **Connection Quality** by monitoring how service peer selection adapts to changing network conditions.
 
 ## Deployment (GitHub Pages)
 

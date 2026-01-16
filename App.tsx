@@ -19,7 +19,7 @@ export default function App() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   // References for tracking changes
-  const prevHostRef = useRef<string | null>(null);
+  const prevModRef = useRef<string | null>(null);
   const prevSessionIdRef = useRef<string | null>(null);
   const prevMessageCountRef = useRef<number>(0);
 
@@ -43,7 +43,7 @@ export default function App() {
       // Add sticky notification if not already present
       const isReconnecting = session.status === ConnectionStatus.RECONNECTING;
       const id = 'sticky-connection-status';
-      const msg = isReconnecting ? "Connection lost. Reconnecting..." : "Host migrating...";
+      const msg = isReconnecting ? "Connection lost. Reconnecting..." : "Mod migrating...";
       const type = isReconnecting ? 'warning' : 'info';
 
       setNotifications(prev => {
@@ -72,13 +72,13 @@ export default function App() {
     }
   }, [tab]);
 
-  // 3. Logic: Host Changed
+  // 3. Logic: Mod Changed
   useEffect(() => {
-    const currentHost = session.gameState.players.find(p => p.isHost)?.name;
-    if (prevHostRef.current && currentHost && prevHostRef.current !== currentHost) {
-      addNotification(`Host changed to ${currentHost}`, 'info');
+    const currentMod = session.gameState.players.find(p => p.isMod)?.name;
+    if (prevModRef.current && currentMod && prevModRef.current !== currentMod) {
+      addNotification(`Mod changed to ${currentMod}`, 'info');
     }
-    prevHostRef.current = currentHost || null;
+    prevModRef.current = currentMod || null;
   }, [session.gameState.players]);
 
   // 4. Logic: Your Turn & Finished
@@ -105,7 +105,7 @@ export default function App() {
         <ToastContainer notifications={notifications} onDismiss={removeNotification} />
         <div className="w-full max-w-md h-[100dvh] bg-slate-900 relative">
           <LandingView
-            onHost={(name, code) => session.hostSession(name, undefined, code)}
+            onCreateSession={(name, code) => session.createSession(name, undefined, code)}
             onJoin={session.joinSession}
             isConnecting={false}
             error={session.error}
@@ -135,7 +135,7 @@ export default function App() {
               gameState={session.gameState}
               myId={session.myId}
               session={session}
-              isHost={session.isHost}
+              isMod={session.isMod}
             />
           )}
           {tab === 'players' && (
@@ -143,7 +143,7 @@ export default function App() {
               gameState={session.gameState}
               myId={session.myId}
               session={session}
-              isHost={session.isHost}
+              isMod={session.isMod}
             />
           )}
           {tab === 'chat' && (
