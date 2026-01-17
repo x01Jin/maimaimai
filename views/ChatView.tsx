@@ -46,7 +46,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setReplyingTo(null);
   };
 
-  const emojiList = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
+  const emojiList = ["❤️", "😂", "😮", "😢", "🔥", "😠", "💀"];
 
   const renderContent = (msg: ChatMessage) => {
     // Mention highlighting
