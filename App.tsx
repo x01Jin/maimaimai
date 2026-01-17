@@ -70,17 +70,25 @@ export default function App() {
 
   // 2. Unread Messages Badge
   useEffect(() => {
-    if (session.gameState.messages.length > prevMessageCountRef.current) {
-      if (tab !== "chat") {
+    const currentMessages = session.gameState.messages;
+    if (currentMessages.length === 0) return;
+
+    if (tab !== "chat") {
+      // If messages changed but length is same (e.g. reaction), we still want to show something?
+      // For now, let's stick to new messages or just any update that wasn't from us
+      const lastMsg = currentMessages[currentMessages.length - 1];
+      if (
+        lastMsg.senderUuid !== session.myUuid &&
+        currentMessages.length > prevMessageCountRef.current
+      ) {
         setUnreadCount(
           (prev) =>
-            prev +
-            (session.gameState.messages.length - prevMessageCountRef.current),
+            prev + (currentMessages.length - prevMessageCountRef.current),
         );
       }
     }
-    prevMessageCountRef.current = session.gameState.messages.length;
-  }, [session.gameState.messages, tab]);
+    prevMessageCountRef.current = currentMessages.length;
+  }, [session.gameState.messages, tab, session.myUuid]);
 
   useEffect(() => {
     if (tab === "chat") {
@@ -186,6 +194,8 @@ export default function App() {
               myUuid={session.myUuid}
               onSend={session.sendMessage}
               onVote={session.castVote}
+              onReact={session.addReaction}
+              onRemoveReact={session.removeReaction}
             />
           )}
         </div>

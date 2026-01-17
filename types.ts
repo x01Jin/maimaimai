@@ -61,6 +61,17 @@ export interface ChatMessage {
   timestamp: number;
 
   isSystem?: boolean;
+
+  replyToId?: string; // ID of the message being replied to
+
+  reactions?: Record<string, string[]>; // emoji -> list of player IDs
+
+  senderIsMod?: boolean;
+  type?: "text";
+
+  metadata?: {
+    alt?: string;
+  };
 }
 
 export interface GameState {
@@ -123,7 +134,18 @@ export type ClientAction =
         senderUuid: string;
         senderName: string;
         messageId: string;
+        replyToId?: string;
+        type?: "text";
+        metadata?: ChatMessage["metadata"];
       };
+    }
+  | {
+      type: "ADD_REACTION";
+      payload: { messageId: string; playerId: string; emoji: string };
+    }
+  | {
+      type: "REMOVE_REACTION";
+      payload: { messageId: string; playerId: string; emoji: string };
     }
   | {
       type: "UPDATE_PLAYER_STATUS";

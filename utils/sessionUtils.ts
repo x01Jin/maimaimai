@@ -36,15 +36,19 @@ export const hashState = (state: GameState): string => {
   const str = JSON.stringify({
     q: state.queue,
     cs: state.currentSession,
-    fa: state.finishApprovals, // Include finish approvals in hash
+    fa: state.finishApprovals,
     p: state.players.map((p) => ({ id: p.id, c: p.isConnected, m: p.isMod })),
     v: state.activeVote,
-    m: state.messages.length, // Include message count to trigger updates on chat
-    l:
-      state.messages.length > 0
-        ? state.messages[state.messages.length - 1].id
-        : "", // Include last msg ID for robustness
-    sp: state.servicePeers, // Include service peers in hash
+    // Use a combined string of message IDs + their reaction counts/keys to detect reaction changes
+    m_sync: state.messages.map((m) => ({
+      i: m.id,
+      r: m.reactions
+        ? Object.entries(m.reactions)
+            .map(([e, u]) => e + u.length)
+            .join("")
+        : "",
+    })),
+    sp: state.servicePeers,
   });
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -59,13 +63,25 @@ export const mergeMessages = (
   local: ChatMessage[],
   incoming: ChatMessage[],
 ): ChatMessage[] => {
-  const all = [...local, ...incoming];
   const map = new Map<string, ChatMessage>();
 
-  all.forEach((msg) => {
-    // Keep the version that has senderUuid if possible, or just the first one seen
-    if (!map.has(msg.id) || (!map.get(msg.id)?.senderUuid && msg.senderUuid)) {
+  // Process local messages first
+  local.forEach((msg) => map.set(msg.id, msg));
+
+  // Process incoming, overwriting if it seems "better" or equal
+  incoming.forEach((msg) => {
+    const existing = map.get(msg.id);
+    if (!existing) {
       map.set(msg.id, msg);
+    } else {
+      // Favor the one with more reactions
+      const existingR = Object.values(existing.reactions || {}).flat().length;
+      const incomingR = Object.values(msg.reactions || {}).flat().length;
+
+      // If incoming has same or more reactions, or has a UUID when existing doesn't
+      if (incomingR >= existingR || (!existing.senderUuid && msg.senderUuid)) {
+        map.set(msg.id, msg);
+      }
     }
   });
 
@@ -540,10 +556,50 @@ export const sessionUtils = (
             senderId: action.payload.senderId,
             senderUuid: action.payload.senderUuid,
             senderName: realName,
+            senderIsMod: sender?.isMod || false,
             content: action.payload.content,
             timestamp: Date.now(),
+            replyToId: action.payload.replyToId,
+            type: action.payload.type || "text",
+            metadata: action.payload.metadata,
+            reactions: {},
           },
         ],
+      };
+    }
+
+    case "ADD_REACTION": {
+      const { messageId, playerId, emoji } = action.payload;
+      return {
+        ...nextState,
+        messages: nextState.messages.map((msg) => {
+          if (msg.id !== messageId) return msg;
+          const reactions = { ...(msg.reactions || {}) };
+          const users = [...(reactions[emoji] || [])];
+          if (!users.includes(playerId)) {
+            users.push(playerId);
+          }
+          reactions[emoji] = users;
+          return { ...msg, reactions };
+        }),
+      };
+    }
+
+    case "REMOVE_REACTION": {
+      const { messageId, playerId, emoji } = action.payload;
+      return {
+        ...nextState,
+        messages: nextState.messages.map((msg) => {
+          if (msg.id !== messageId) return msg;
+          const reactions = { ...(msg.reactions || {}) };
+          if (reactions[emoji]) {
+            reactions[emoji] = reactions[emoji].filter((id) => id !== playerId);
+            if (reactions[emoji].length === 0) {
+              delete reactions[emoji];
+            }
+          }
+          return { ...msg, reactions };
+        }),
       };
     }
 

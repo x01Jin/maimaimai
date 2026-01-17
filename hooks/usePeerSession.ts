@@ -53,7 +53,14 @@ interface UsePeerSessionReturn {
   reorderQueue: (queueIds: string[]) => void;
   finishTurn: () => void;
   forceFinishTurn: () => void;
-  sendMessage: (content: string) => void;
+  sendMessage: (
+    content: string,
+    replyToId?: string,
+    type?: "text" | "image" | "gif",
+    metadata?: GameState["messages"][0]["metadata"],
+  ) => void;
+  addReaction: (messageId: string, emoji: string) => void;
+  removeReaction: (messageId: string, emoji: string) => void;
   transferMod: (targetId: string) => void;
   disconnect: () => void;
   leaveSession: () => void;
@@ -520,8 +527,8 @@ export const usePeerSession = (): UsePeerSessionReturn => {
         type: "FORCE_FINISH_TURN",
         payload: { sessionId: gameState.currentSession.id },
       }),
-    sendMessage: (content) =>
-      content.trim() &&
+    sendMessage: (content, replyToId, type = "text", metadata) =>
+      (content.trim() || type !== "text") &&
       sendAction({
         type: "SEND_CHAT",
         payload: {
@@ -530,7 +537,20 @@ export const usePeerSession = (): UsePeerSessionReturn => {
           senderUuid: myUuid,
           senderName: getIdentity().name,
           messageId: generateUUID(),
+          replyToId,
+          type,
+          metadata,
         },
+      }),
+    addReaction: (messageId, emoji) =>
+      sendAction({
+        type: "ADD_REACTION",
+        payload: { messageId, playerId: myId, emoji },
+      }),
+    removeReaction: (messageId, emoji) =>
+      sendAction({
+        type: "REMOVE_REACTION",
+        payload: { messageId, playerId: myId, emoji },
       }),
     error,
   };
