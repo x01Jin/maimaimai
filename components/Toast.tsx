@@ -66,9 +66,17 @@ const Toast: React.FC<{
     <motion.div
       initial={{ y: -50, opacity: 0, scale: 0.9 }}
       animate={{ y: 0, opacity: 1, scale: 1 }}
-      exit={{ y: -50, opacity: 0, scale: 0.9 }}
+      exit={{ x: 100, opacity: 0, scale: 0.9 }}
+      drag="x"
+      dragConstraints={{ left: 0, right: 300 }}
+      dragElastic={0.7}
+      onDragEnd={(_, info) => {
+        if (info.offset.x > 100) {
+          onDismiss(notification.id);
+        }
+      }}
       layout
-      className={`pointer-events-auto w-full max-w-sm rounded-xl border p-4 shadow-lg flex items-center gap-3 backdrop-blur-sm ${getStyles()}`}
+      className={`pointer-events-auto w-full max-w-sm rounded-xl border p-4 shadow-lg flex items-center gap-3 backdrop-blur-sm cursor-grab active:cursor-grabbing ${getStyles()}`}
     >
       <div className="shrink-0">{getIcon()}</div>
       <div className="flex-1 text-sm font-medium text-white break-words">

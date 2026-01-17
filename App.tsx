@@ -19,9 +19,9 @@ export default function App() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   // References for tracking changes
-  const prevModRef = useRef<string | null>(null);
+  const prevModRef = useRef<string | undefined>(undefined);
   const prevSessionIdRef = useRef<string | null>(null);
-  const prevMessageCountRef = useRef<number>(0);
+  const prevMessageCountRef = useRef<number | null>(null);
 
   React.useEffect(() => {
     window.scrollTo(0, 0);
@@ -32,12 +32,15 @@ export default function App() {
   const addNotification = (
     message: string,
     type: "info" | "success" | "warning" | "error",
-    duration = 3000,
+    duration = 3000, // Adjusted duration to 3s
   ) => {
-    setNotifications((prev) => [
-      ...prev,
-      { id: generateUUID(), message, type, duration },
-    ]);
+    setNotifications((prev) => {
+      // Deduplication: Don't add if the same message is already showing
+      if (prev.some((n) => n.message === message)) {
+        return prev;
+      }
+      return [...prev, { id: generateUUID(), message, type, duration }];
+    });
   };
 
   const removeNotification = (id: string) => {
@@ -68,23 +71,47 @@ export default function App() {
     }
   }, [session.status]);
 
-  // 2. Unread Messages Badge
+  // 2. Message Logic: Unread Badge, Mentions, and Replies
   useEffect(() => {
     const currentMessages = session.gameState.messages;
-    if (currentMessages.length === 0) return;
 
-    if (tab !== "chat") {
-      // If messages changed but length is same (e.g. reaction), we still want to show something?
-      // For now, let's stick to new messages or just any update that wasn't from us
+    // Initialize ref on first load with messages
+    if (prevMessageCountRef.current === null) {
+      prevMessageCountRef.current = currentMessages.length;
+      return;
+    }
+
+    if (currentMessages.length > prevMessageCountRef.current) {
       const lastMsg = currentMessages[currentMessages.length - 1];
-      if (
-        lastMsg.senderUuid !== session.myUuid &&
-        currentMessages.length > prevMessageCountRef.current
-      ) {
+
+      // Increment unread badge if not on chat tab
+      if (tab !== "chat" && lastMsg.senderUuid !== session.myUuid) {
         setUnreadCount(
           (prev) =>
-            prev + (currentMessages.length - prevMessageCountRef.current),
+            prev + (currentMessages.length - prevMessageCountRef.current!),
         );
+      }
+
+      // Check for mentions and replies
+      if (lastMsg.senderUuid !== session.myUuid) {
+        const myPlayer = session.gameState.players.find(
+          (p) => p.uuid === session.myUuid,
+        );
+        const myName = myPlayer?.name || "";
+
+        if (myName && lastMsg.content.includes(`@${myName}`)) {
+          addNotification(
+            `You were mentioned by ${lastMsg.senderName}`,
+            "info",
+          );
+        } else if (lastMsg.replyToId) {
+          const repliedToMsg = currentMessages.find(
+            (m) => m.id === lastMsg.replyToId,
+          );
+          if (repliedToMsg && repliedToMsg.senderUuid === session.myUuid) {
+            addNotification(`${lastMsg.senderName} replied to you`, "info");
+          }
+        }
       }
     }
     prevMessageCountRef.current = currentMessages.length;
@@ -99,8 +126,18 @@ export default function App() {
   // 3. Logic: Mod Changed
   useEffect(() => {
     const currentMod = session.gameState.players.find((p) => p.isMod)?.name;
-    if (prevModRef.current && currentMod && prevModRef.current !== currentMod) {
+
+    // Initialize ref or detect change
+    if (prevModRef.current === undefined) {
+      prevModRef.current = currentMod || null;
+      return;
+    }
+
+    if (currentMod && prevModRef.current && prevModRef.current !== currentMod) {
       addNotification(`Mod changed to ${currentMod}`, "info");
+    } else if (currentMod && prevModRef.current === null) {
+      // Mod was null, now set
+      addNotification(`${currentMod} is now the mod`, "info");
     }
     prevModRef.current = currentMod || null;
   }, [session.gameState.players]);
@@ -113,7 +150,7 @@ export default function App() {
       session.gameState.currentSession.id !== prevSessionIdRef.current
     ) {
       if (session.gameState.currentSession.playerIds.includes(session.myId)) {
-        addNotification("It's your turn!", "success", 5000);
+        addNotification("It's your turn!", "success");
       }
     }
 
@@ -177,6 +214,7 @@ export default function App() {
               myId={session.myId}
               session={session}
               isMod={session.isMod}
+              addNotification={addNotification}
             />
           )}
           {tab === "players" && (

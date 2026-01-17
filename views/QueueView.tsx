@@ -26,6 +26,11 @@ interface QueueViewProps {
   myId: string;
   session: UsePeerSessionReturn;
   isMod: boolean;
+  addNotification: (
+    message: string,
+    type: "info" | "success" | "warning" | "error",
+    duration?: number,
+  ) => void;
 }
 
 interface QueueItemProps {
@@ -219,6 +224,7 @@ export const QueueView: React.FC<QueueViewProps> = ({
   myId,
   session,
   isMod,
+  addNotification,
 }) => {
   const [showJoinOptions, setShowJoinOptions] = useState(false);
   const [partnerSelectMode, setPartnerSelectMode] = useState(false);
@@ -286,11 +292,43 @@ export const QueueView: React.FC<QueueViewProps> = ({
   };
 
   const copyCode = () => {
+    const textToCopy = sessionName;
+
+    const fallbackCopy = (text: string) => {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      textArea.style.top = "0";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        const successful = document.execCommand("copy");
+        if (successful) {
+          addNotification("Invite code copied to clipboard!", "success");
+        } else {
+          addNotification("Failed to copy invite code.", "error");
+        }
+      } catch (err) {
+        console.error("Fallback: Oops, unable to copy", err);
+        addNotification("Failed to copy invite code.", "error");
+      }
+      document.body.removeChild(textArea);
+    };
+
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(sessionName);
+      navigator.clipboard
+        .writeText(textToCopy)
+        .then(() => {
+          addNotification("Invite code copied to clipboard!", "success");
+        })
+        .catch((err) => {
+          console.error("Async: Could not copy text: ", err);
+          fallbackCopy(textToCopy);
+        });
     } else {
-      console.warn("Clipboard API not available");
-      // Fallback or notification could be added here
+      fallbackCopy(textToCopy);
     }
   };
 
@@ -346,7 +384,7 @@ export const QueueView: React.FC<QueueViewProps> = ({
         <div className="flex items-center gap-4">
           <div className="text-right">
             <div className="text-2xl font-black text-cyan-400 leading-none">
-              {queue.length}
+              {queue.reduce((acc, entry) => acc + entry.playerIds.length, 0)}
             </div>
             <div className="text-xs text-slate-500 uppercase font-bold">
               Waiting
