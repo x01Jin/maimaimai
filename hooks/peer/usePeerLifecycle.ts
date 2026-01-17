@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef } from "react";
 import Peer from "peerjs";
 import {
   ConnectionStatus,
@@ -7,7 +7,7 @@ import {
   PeerError,
   DataConnection,
 } from "../../types";
-import { NETWORK_CONFIG, ID_PREFIX } from "../../constants";
+import { NETWORK_CONFIG } from "../../constants";
 import {
   INITIAL_STATE,
   replacePlayerIdInGameState,
@@ -17,7 +17,6 @@ import {
   saveIdentity,
   loadHostState,
   addRecentSession,
-  getIdentity,
 } from "../../utils/storage";
 import { logger, generateShortCode, getBeaconId } from "./peerUtils";
 

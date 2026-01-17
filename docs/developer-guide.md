@@ -39,6 +39,7 @@ Located in `utils/sessionUtils.ts`, this file contains the business logic for qu
 **Key Responsibilities:**
 
 - **Player Joining:** Handles new UUIDs vs. reconnecting UUIDs (ID swapping via `replacePlayerIdInGameState`).
+- **Merge Logic:** `mergeMessages` provides safe, deduplicated chat history merging across P2P state updates, preventing history gaps during mod transitions.
 - **Queue Logic:** Automatically pairing players in `MATCH` mode, handling `PARTNER` joins, and managing the `currentSession`.
 - **Voting:** Implementing the `REQUEST_SOLO` and `CAST_VOTE` logic, including auto-approval thresholds.
 - **State Hashing:** Generating a unique hash of the state (`hashState`) for optimized broadcasts.

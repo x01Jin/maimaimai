@@ -105,9 +105,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
               className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
             >
               <div
-                className={`text-xs mb-1 text-slate-400 ${isMe ? "mr-1" : "ml-1"}`}
+                className={`text-xs mb-1 text-slate-400 ${isMe ? "mr-1" : "ml-1"} flex items-center gap-1`}
               >
                 {msg.senderName}
+                {gameState.players.find((p) => p.uuid === msg.senderUuid)
+                  ?.isMod && (
+                  <span className="text-orange-400 font-bold text-[10px] bg-orange-400/10 px-1 rounded border border-orange-400/20">
+                    MOD
+                  </span>
+                )}
               </div>
               <div
                 className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm break-words shadow-sm ${

@@ -1,15 +1,10 @@
 import React, { useCallback } from "react";
-import {
-  P2PMessage,
-  GameState,
-  ClientAction,
-  ConnectionStatus,
-} from "../../types";
+import { P2PMessage, GameState, ClientAction } from "../../types";
 import {
   INITIAL_STATE,
   sessionUtils,
-  createSystemMessage,
   finalizeState,
+  mergeMessages,
 } from "../../utils/sessionUtils";
 
 interface MessagingProps {
@@ -127,6 +122,10 @@ export const usePeerMessaging = ({
               ...INITIAL_STATE,
               ...receivedState,
               players: mergedPlayers,
+              messages: mergeMessages(
+                gameStateRef.current.messages,
+                receivedState.messages,
+              ),
             });
             setGameState(migratedState);
 
@@ -170,10 +169,18 @@ export const usePeerMessaging = ({
                 isMod: p.id === newModId,
               })),
               servicePeers: [newModId, ...otherServicePeers].slice(0, 3),
-              messages: [
-                ...base.messages,
-                createSystemMessage(`Mod role transferred to ${newModName}`),
-              ],
+              messages: mergeMessages(base.messages, [
+                ...(latestState?.messages || []),
+                {
+                  id: `mod-transfer-${newModId}-${base.version + 100}`,
+                  senderId: "system",
+                  senderUuid: "system",
+                  senderName: "System",
+                  content: `Mod role transferred to ${newModName}`,
+                  timestamp: Date.now(),
+                  isSystem: true,
+                },
+              ]),
               version: base.version + 100,
             };
           };
@@ -188,6 +195,11 @@ export const usePeerMessaging = ({
           lastModPulseRef.current = Date.now();
 
           if (isMe) {
+            // Immediately broadcast heartbeat to prevent other peers from re-electing due to timeout
+            broadcast({
+              type: "HEARTBEAT",
+              payload: { id: myId, timestamp: Date.now(), sequence: 0 },
+            });
             tryCaptureBeacon(sessionCode);
             broadcast({
               type: "PEER_DISCOVERY",

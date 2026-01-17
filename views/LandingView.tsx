@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
-import { Users, Clock, Trash2, CloudLightning } from "lucide-react";
+import { Users, Clock, Trash2, CloudLightning, Crown } from "lucide-react";
 import {
   getIdentity,
   getRecentSessions,
   removeRecentSession,
   RecentSession,
+  loadHostState,
 } from "../utils/storage";
 
 interface LandingViewProps {
   onCreateSession: (name: string, recoverCode?: string) => void;
   onJoin: (code: string, name: string) => void;
+  onRecoverSession: (code: string, name: string) => void;
   isConnecting: boolean;
   error: string | null;
 }
@@ -19,6 +21,7 @@ interface LandingViewProps {
 export const LandingView: React.FC<LandingViewProps> = ({
   onCreateSession,
   onJoin,
+  onRecoverSession,
   isConnecting,
   error,
 }) => {
@@ -128,12 +131,20 @@ export const LandingView: React.FC<LandingViewProps> = ({
           <Button
             fullWidth
             className="bg-orange-500 text-white hover:bg-orange-400 shadow-lg shadow-orange-500/20 mb-2"
-            onClick={() => onJoin(lastSession.code, name)}
+            onClick={() => {
+              if (loadHostState(lastSession.code)) {
+                onRecoverSession(lastSession.code, name);
+              } else {
+                onJoin(lastSession.code, name);
+              }
+            }}
             disabled={!name.trim() || isConnecting}
           >
             <div className="flex items-center justify-center gap-2">
               <CloudLightning size={20} />
-              Rejoin Session {lastSession.code}
+              {loadHostState(lastSession.code)
+                ? `Resume Session ${lastSession.code}`
+                : `Rejoin Session ${lastSession.code}`}
             </div>
           </Button>
         )}
@@ -160,13 +171,29 @@ export const LandingView: React.FC<LandingViewProps> = ({
             {history.map((h, i) => (
               <div key={i} className="flex gap-2">
                 <button
-                  onClick={() => onJoin(h.code, name)}
+                  onClick={() => {
+                    if (loadHostState(h.code)) {
+                      onRecoverSession(h.code, name);
+                    } else {
+                      onJoin(h.code, name);
+                    }
+                  }}
                   disabled={!name.trim()}
                   className="flex-1 bg-slate-800/50 hover:bg-slate-800 p-3 rounded-xl flex justify-between items-center text-left border border-slate-700 transition-colors group"
                 >
-                  <span className="font-mono font-bold text-cyan-400 group-hover:text-cyan-300">
-                    {h.code}
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="font-mono font-bold text-cyan-400 group-hover:text-cyan-300">
+                      {h.code}
+                    </span>
+                    {loadHostState(h.code) && (
+                      <div className="flex items-center gap-1">
+                        <Crown size={10} className="text-orange-400" />
+                        <span className="text-[10px] text-orange-400 font-bold uppercase tracking-wider">
+                          Host
+                        </span>
+                      </div>
+                    )}
+                  </div>
                   <span className="text-xs text-slate-500">
                     {new Date(h.lastJoined).toLocaleDateString()}
                   </span>

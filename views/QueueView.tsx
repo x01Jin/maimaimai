@@ -286,7 +286,12 @@ export const QueueView: React.FC<QueueViewProps> = ({
   };
 
   const copyCode = () => {
-    navigator.clipboard.writeText(sessionName);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(sessionName);
+    } else {
+      console.warn("Clipboard API not available");
+      // Fallback or notification could be added here
+    }
   };
 
   const getEntryColor = (type: string) => {

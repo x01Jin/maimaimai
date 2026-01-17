@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { usePeerSession } from "./hooks/usePeerSession";
 import { ConnectionStatus, AppNotification } from "./types";
-import { Button, Modal, ToastContainer, ConfirmationModal } from "./components";
+import { ToastContainer, ConfirmationModal } from "./components";
 import { generateUUID } from "./utils";
 import { Users, LogOut, MessageSquare, ListOrdered } from "lucide-react";
 
@@ -133,6 +133,7 @@ export default function App() {
               session.createSession(name, undefined, code)
             }
             onJoin={session.joinSession}
+            onRecoverSession={session.recoverSession}
             isConnecting={false}
             error={session.error}
           />

@@ -55,6 +55,30 @@ export const hashState = (state: GameState): string => {
   return hash.toString(36);
 };
 
+export const mergeMessages = (
+  local: ChatMessage[],
+  incoming: ChatMessage[],
+): ChatMessage[] => {
+  const all = [...local, ...incoming];
+  const map = new Map<string, ChatMessage>();
+
+  all.forEach((msg) => {
+    // Keep the version that has senderUuid if possible, or just the first one seen
+    if (!map.has(msg.id) || (!map.get(msg.id)?.senderUuid && msg.senderUuid)) {
+      map.set(msg.id, msg);
+    }
+  });
+
+  const merged = Array.from(map.values()).sort(
+    (a, b) => a.timestamp - b.timestamp,
+  );
+
+  if (merged.length > NETWORK_CONFIG.MAX_CHAT_HISTORY) {
+    return merged.slice(merged.length - NETWORK_CONFIG.MAX_CHAT_HISTORY);
+  }
+  return merged;
+};
+
 // Helper for deep ID replacement
 export const replacePlayerIdInGameState = (
   state: GameState,
