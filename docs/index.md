@@ -33,7 +33,8 @@ MaiMaiMai allows a group of players at an arcade to manage their turn order digi
   * **Solo:** Play alone (triggers a community vote for fairness, voting is skipped if ≤ 4 players).
   * **Match:** Join alone and pair automatically with others (triggers a community vote for fairness, voting is skipped if ≤ 4 players).
   * **Partner:** Join as a fixed duo with a friend.
-* **Real-time Chat:** Communicate with everyone in the room.
-* **Dynamic Service Peer Selection:** Service peers automatically selected based on connection quality to prevent disruptions.
+* **Real-time Chat:** Communicate with everyone in the room with unread message tracking.
+* **Dynamic Service Peer Selection:** Service peers automatically selected based on connection quality (latency, jitter, packet loss) to prevent disruptions.
+* **Resilience:** Automatic Mod election based on seniority ensures the session continues if the host leaves.
+* **Session Recovery:** Remembers your identity and allows hosts to recover active sessions from local storage.
 * **Mod Role:** Session creator (Mod) can manage administrative tasks like reordering queue and transferring Mod role.
-* **Persistence:** Remembers your identity and recent session codes using local storage.

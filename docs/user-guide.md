@@ -1,54 +1,72 @@
 # User Guide
 
+MaiMaiMai is a web-based tool designed for arcade rhythm game players to manage their turn order fairly and easily.
+
 ## Getting Started
 
-MaiMaiMai is a web-based tool. No download is required. Simply open the URL in your mobile browser.
+No app store download is required. Simply open the URL in your mobile browser.
 
 ### Hosting a Session
 
-1. Enter your **IGN (In-Game Name)**.
+1. Enter your **IGN (In-Game Name)** on the Landing page.
 2. Click **Host New Session**.
 3. A 4-character **Session Code** (e.g., `X7K2`) will be generated.
 4. Share this code with players at the arcade.
 
 ### Joining a Session
 
-1. Switch to the **Join** tab on the home screen.
-2. Enter your IGN and the 4-character code provided by the host.
+1. Enter your **IGN** on the Landing page.
+2. Enter the 4-character **Session Code**.
 3. Click **Join Session**.
+
+---
+
+## The Navigation Tabs
+
+The interface is divided into three main tabs:
+
+- **Queue:** View the current players and the waiting list. Join or leave the queue from here.
+- **Players:** See everyone currently in the session. View connection quality and transfer the Mod role.
+- **Chat:** Send messages to the group and participate in active Solo play votes.
 
 ---
 
 ## Queuing Modes
 
-Tap **Join Queue** to see options:
+Tap the **Join Queue** button to see your options:
 
-- **Duo Match:** Join the queue alone. You will be paired with the next available person in the Match queue.
-- **With Partner:** Select a friend who is already in the session (Online) to join the queue together as a fixed pair.
-- **Solo Play:** Request to play alone. This triggers a **Vote** among all active players. >50% must approve for the solo slot to be granted.
+- **Duo Match:** Join the queue alone. You will be automatically paired with the next available person in the Match queue.
+- **With Partner:** Select a friend who is already in the session to join the queue together as a fixed pair.
+- **Solo Play:** Request to play alone.
+  - **Auto-Approval:** If there are 4 or fewer players in the session, solo requests are granted immediately.
+  - **Voting:** If there are more than 4 players, a vote is triggered. >50% of the room must approve your request in the Chat tab.
 
 ---
 
 ## Gameplay Flow
 
-1. **Waiting:** Your name appears in the queue list.
-2. **Up Next:** When you reach the top, wait for the current players to finish.
-3. **Playing:** When it is your turn, your name appears in the "Currently Playing" banner.
+1. **Waiting:** Your name appears in the queue. You can see your position and who you are paired with.
+2. **Up Next:** When you reach the top, wait for the "Currently Playing" banner to clear.
+3. **Playing:** When it is your turn, a notification will appear, and your name will be highlighted in the top banner.
 4. **Finish:** Once your game is done, tap **Finish Turn**.
-    - If playing as a pair, *both* players must tap Finish (or the Host can force finish).
+    - If playing as a pair, the queue advances once *both* players tap Finish (or if the Mod forces a finish).
+
+---
 
 ## Chat & Voting
 
-- **Chat:** Use the Chat tab to send messages to the room.
-- **Voting:** When a Solo request is made, a voting popup appears in the Chat tab. Tap **Approve** to vote Yes.
+- **System Messages:** The chat logs important events like players joining, queue updates, and mod transfers.
+- **Unread Badge:** A red notification bubble on the Chat tab indicates new messages or an active vote.
+- **Solo Votes:** When someone requests Solo play, a voting card appears at the bottom of the chat. Tap **Approve** to cast your vote.
 
-## Host Controls
+---
 
-The host has special privileges to manage the room:
+## Host (Mod) Controls
 
-- **Remove Players:** Remove entries from the queue by tapping the `X`.
-- **Reorder Queue:** Drag and drop queue entries to rearrange them.
-- **Pass Host:** In the Players tab, tap the crown icon to transfer hosting duties to another player.
-  - **Transfer & Stay:** You pass the role but remain in the room as a normal player.
-  - **Transfer & Leave:** You pass the role and automatically disconnect from the session.
-- **Force Finish:** If a player forgets to finish their turn, the Host can tap "Finish Turn" on the banner to advance the queue.
+The session creator (Mod) has special privileges to manage the room:
+
+- **Remove Players:** Tap the `X` on any queue entry to remove it.
+- **Reorder Queue:** Drag and drop queue entries to rearrange the waitlist.
+- **Force Finish:** If a player forgets to tap "Finish Turn," the Mod can advance the queue manually.
+- **Pass Mod Role:** In the Players tab, tap the crown icon next to a player's name to transfer administrative duties.
+- **Session Recovery:** If you accidentally close your browser, you can rejoin using the same code. As long as you were the Mod, the session will be restored from your device's history.

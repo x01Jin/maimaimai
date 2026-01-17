@@ -1,65 +1,80 @@
 # Architecture Overview
 
+MaiMaiMai is built on a decentralized, peer-to-peer (P2P) architecture that eliminates the need for a central server, ensuring privacy, low latency, and resilience against server outages.
+
 ## Multi-Service Peer P2P Topology
 
-MaiMaiMai employs a **Multi-Service Peer Mesh** topology over WebRTC (via PeerJS) that provides redundancy and prevents service disruptions through distributed state management.
+The system uses a **Multi-Service Peer Mesh** topology over WebRTC (via PeerJS). This hybrid approach combines the benefits of a full mesh (direct communication) with an authoritative distributed core (service peers).
 
-### 1. The Beacon (Entry Point)
+### 1. The Beacon (Discovery)
 
-To solve the discovery problem without a central signaling database:
+Since there is no central database to list active sessions, MaiMaiMai uses a deterministic **Beacon** system:
 
-- The **Mod** maintains a secondary Peer connection called the **Beacon**.
-- The Beacon ID is deterministic: `mai-q-[CODE]` (e.g., `mai-q-ABCD`).
-- New players connect to this Beacon to perform the initial handshake (`HELLO`).
-- Once connected, a service peer sends the joining player a `PEER_DISCOVERY` payload containing the specific Peer IDs of all other participants.
+- **ID Scheme:** The session creator (Mod) attempts to capture a secondary PeerJS ID: `mai-q-[CODE]` (e.g., `mai-q-ABCD`).
+- **Handshake:** New players connect to this Beacon ID first.
+- **Discovery:** Upon connection, a service peer sends a `PEER_DISCOVERY` message containing the full list of Peer IDs currently in the session.
+- **Transition:** The joining player then establishes direct WebRTC data channels with all other peers and disconnects from the Beacon.
+- **Conflict Handling:** Only the Mod captures the Beacon. If a Mod disconnects, the newly elected Mod takes over the Beacon.
 
-### 2. Service Peers (Distributed Authority)
+### 2. Service Peers (The Authoritative Core)
 
-- **2-3 Service Peers** maintain the authoritative game state (Mod + 1-2 additional peers).
-- The **Mod** (session creator) always acts as a service peer and manages administrative actions (kick, reorder).
-- Additional service peers are selected based on connection quality (latency, jitter, packet loss).
-- Service peers are dynamically updated without disruption as connection quality changes.
-- All `Actions` can be sent to ANY service peer, which processes and broadcasts state updates.
-- Service peers execute `sessionUtils`, calculate the new state hash, and broadcast `SYNC_STATE`.
-- Clients accept state updates from service peers if the incoming `version` is higher.
+While every peer can talk to every other peer, only **Service Peers** are authorized to mutate the state and broadcast updates.
 
-### 3. The Mesh (Full Connectivity)
+- **Selection:** The system maintains 3 Service Peers: the current Mod (mandatory) and up to 2 additional high-quality peers.
+- **Redundancy:** If one service peer disconnects, the state remains safe and authoritative on the others. This prevents "state loss" if the Mod refreshes their browser.
+- **Action Flow:** Clients send `ACTION` messages (e.g., `JOIN_QUEUE`) to any available service peer.
+- **Verification:** Service peers execute the `sessionUtils` reducer, increment the state `version`, and broadcast the new state via `SYNC_STATE`.
 
-- Every peer maintains direct connections to all other peers in the swarm.
-- This full mesh ensures that if one service peer becomes unavailable, others seamlessly continue service.
-- Connection quality metrics are continuously measured via HEARTBEAT/PONG exchanges.
+### 3. Connection Quality Monitoring (QoS)
 
----
+Service peers are not static. They are dynamically selected based on real-time network metrics measured via `HEARTBEAT` / `PONG` exchanges:
 
-## State Management
-
-The application state (`GameState`) is an immutable object managed by a Reducer pattern.
-
-- **Versioning:** The state includes a `version` number and `servicePeers` array. This resolves conflict/race conditions by prioritizing the highest version number.
-- **Hashing:** To optimize bandwidth, service peers calculate a content hash of the state. `SYNC_STATE` messages are only broadcast if the hash changes.
-- **Persistence:** The Mod writes the state to `localStorage` on every update. This allows for session recovery if the Mod refreshes their browser.
-- **Service Peer Tracking:** The `servicePeers` array tracks which peers are currently authoritative.
+- **Latency:** Round-trip time (RTT).
+- **Jitter:** Variance in latency over the last 10 samples (lower is better for stability).
+- **Packet Loss:** Estimated based on missed heartbeat cycles.
+- **Quality Score:** A weighted formula: `Score = (LatencyScore * 0.6) + (JitterScore * 0.2) + (PacketLossScore * 0.2)`.
+- **Dynamic Promotion:** The Mod monitors these scores and updates the `servicePeers` list in the `GameState` if better candidates are found.
 
 ---
 
-## Connection Quality Monitoring
+## State Synchronization Protocol
 
-To maintain optimal service peer selection, the system continuously monitors connection quality:
+State is managed as a single immutable `GameState` object.
 
-- **Latency Measurement:** HEARTBEAT messages include timestamps. Recipients respond with PONG containing the original timestamp.
-- **Metrics Tracked:** Latency (avg), jitter (variance), packet loss (estimated).
-- **Quality Score:** Computed from weighted combination of metrics (60% latency, 20% jitter, 20% packet loss).
-- **Selection Algorithm:** Mod is always first service peer. Additional peers selected by best quality scores.
-- **Dynamic Updates:** Service peer list updated every 5 seconds if significant quality improvements detected (>20% threshold).
-- **Seamless Transitions:** Service peer changes occur without disrupting ongoing sessions.
+### Versioning & Conflict Resolution
+
+- **Version Number:** Every state change increments the `version`. Clients only accept `SYNC_STATE` messages if the incoming `version` is strictly higher than their local version.
+- **Hashing:** A deterministic hash of the state (`stateHash`) is calculated. `SYNC_STATE` is only broadcast if the content hash changes, significantly reducing network traffic in idle states.
+- **ID Stability:** Users are identified by a persistent `uuid`. If a user reconnects with a new Peer ID, the system performs a "deep swap" of the ID across the entire state (players list, queue, active votes).
+
+### Persistence & Recovery
+
+The current Mod automatically saves the `GameState` to `localStorage` on every update.
+
+- **Session Recovery:** If the Mod's browser crashes, they can "Recover Session" using the same code. The state is restored from local storage and re-broadcast to the mesh.
+- **Migrated Mod Recovery:** If a player is elected as Mod, they begin saving the state locally to provide future recovery.
 
 ---
 
-## Mod Transfer
+## P2P Message Protocol
 
-The Mod role can be voluntarily transferred for administrative control:
+| Message Type | Direction | Description |
+| :--- | :--- | :--- |
+| `HELLO` | New -> Beacon | Initial handshake from a joining player. |
+| `PEER_DISCOVERY` | Service -> New | Provides the list of all active Peer IDs to the new player. |
+| `SYNC_STATE` | Service -> All | Broadcasts the latest authoritative `GameState`. |
+| `ACTION` | Client -> Service | Forwards a user intent (e.g., `JOIN_QUEUE`) for processing. |
+| `HEARTBEAT` | All -> All | Keep-alive and latency measurement probe (every 2s). |
+| `PONG` | All -> All | Response to heartbeat with original timestamp. |
+| `TRANSFER_MOD` | Mod -> All | Signals the handoff of the Mod role to a specific player. |
+| `CLAIM_HOST` | Elected -> All | Broadcast during an election to claim the Mod role. |
 
-1. **Transfer:** Current Mod selects a connected player.
-2. **Broadcast:** `TRANSFER_MOD` message sent to all peers.
-3. **Update:** All peers update their local state to reflect new Mod.
-4. **Service Peer Adjustment:** New Mod's quality check loop automatically recalculates service peer list.
+---
+
+## Mod Election Algorithm
+
+If the current Mod disconnects unexpectedly, the mesh performs an automatic election to maintain the Beacon and authority:
+
+1. **Detection:** All peers monitor the Mod's heartbeat. If no pulse is detected for `HOST_TIMEOUT_MS` (6s), an election is triggered.
+2. **Seniority:** The candidate pool is filtered for online players. The player with the **earliest `joinedAt` timestamp** (the "oldest" player) is automatically elected.
+3. **Promotion:** The winner promotes themselves to Mod, attempts to capture the session's Beacon ID, and broadcasts a `SYNC_STATE` with an authority bump (`version + 10`).
