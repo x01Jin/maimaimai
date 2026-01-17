@@ -117,7 +117,7 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
                     <div className="max-h-60 overflow-y-auto space-y-2 no-scrollbar">
                         {players.filter((p: Player) => p.id !== myId && p.isConnected).map((p: Player) => (
                             <button
-                                key={p.id}
+                                key={p.uuid}
                                 onClick={() => { session.transferMod(p.id); setShowTransferMod(false); }}
                                 className="w-full p-3 bg-slate-700 hover:bg-slate-600 rounded-xl flex items-center justify-between text-white font-bold"
                             >

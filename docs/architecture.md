@@ -25,14 +25,15 @@ While every peer can talk to every other peer, only **Service Peers** are author
 - **Action Flow:** Clients send `ACTION` messages (e.g., `JOIN_QUEUE`) to any available service peer.
 - **Verification:** Service peers execute the `sessionUtils` reducer, increment the state `version`, and broadcast the new state via `SYNC_STATE`.
 
-### 3. Connection Quality Monitoring (QoS)
+### 3. Connection Quality & Stability Monitoring (QoS)
 
 Service peers are not static. They are dynamically selected based on real-time network metrics measured via `HEARTBEAT` / `PONG` exchanges:
 
 - **Latency:** Round-trip time (RTT).
 - **Jitter:** Variance in latency over the last 10 samples (lower is better for stability).
-- **Packet Loss:** Estimated based on missed heartbeat cycles.
-- **Quality Score:** A weighted formula: `Score = (LatencyScore * 0.6) + (JitterScore * 0.2) + (PacketLossScore * 0.2)`.
+- **Packet Loss:** Calculated using incrementing **sequence numbers** in heartbeats. Every heartbeat is tracked in a `pendingSequences` map. If a sequence is not acknowledged within 5 seconds, it is marked as lost.
+- **Adaptive Heartbeat:** The interval dynamically scales between 3s and 10s. If jitter is low (<5ms), the interval increases to save battery and data. If instability is detected, it reverts to a faster rate for quick failure detection.
+- **Quality Score:** A weighted formula: `Score = (LatencyScore * 0.6) + (JitterScore * 0.2) + (PacketLossScore * 0.2)`. A decay mechanism ensures scores recover once network stability returns.
 - **Dynamic Promotion:** The Mod monitors these scores and updates the `servicePeers` list in the `GameState` if better candidates are found.
 
 ---
@@ -44,8 +45,15 @@ State is managed as a single immutable `GameState` object.
 ### Versioning & Conflict Resolution
 
 - **Version Number:** Every state change increments the `version`. Clients only accept `SYNC_STATE` messages if the incoming `version` is strictly higher than their local version.
-- **Hashing:** A deterministic hash of the state (`stateHash`) is calculated. `SYNC_STATE` is only broadcast if the content hash changes, significantly reducing network traffic in idle states.
-- **ID Stability:** Users are identified by a persistent `uuid`. If a user reconnects with a new Peer ID, the system performs a "deep swap" of the ID across the entire state (players list, queue, active votes).
+- **Delta Patching:** `SYNC_STATE` messages include the `lastAction` that caused the update. If a peer is exactly one version behind, it applies the action locally instead of replacing the entire state, ensuring smooth, "zero-flicker" updates.
+- **Hashing:** A deterministic hash of the state (`stateHash`) is calculated based on critical fields (queue, players, messages, etc.). `SYNC_STATE` is only broadcast if the content hash changes.
+- **Data Capping:** Chat history is limited to 50 messages (`MAX_CHAT_HISTORY`) to keep the synchronization payload small and mobile-friendly.
+
+### Resilience & Mobile Data Optimization
+
+- **NAT Traversal:** The system uses multiple globally distributed STUN servers and dedicated TURN relays (TCP supported) to maximize connection success rates behind CGNAT and restrictive mobile firewalls.
+- **Action Buffering:** If a player loses connection to all service peers, their actions (chats, queue joins) are buffered locally. Once a connection to a service peer is re-established, the buffer is automatically flushed.
+- **Robust Reconnection:** PeerJS `network-disconnected` events trigger an immediate automatic reconnection attempt to restore the session without user intervention.
 
 ### Persistence & Recovery
 
@@ -64,9 +72,9 @@ The current Mod automatically saves the `GameState` to `localStorage` on every u
 | `PEER_DISCOVERY` | Service -> New | Provides the list of all active Peer IDs to the new player. |
 | `SYNC_STATE` | Service -> All | Broadcasts the latest authoritative `GameState`. |
 | `ACTION` | Client -> Service | Forwards a user intent (e.g., `JOIN_QUEUE`) for processing. |
-| `HEARTBEAT` | All -> All | Keep-alive and latency measurement probe (every 2s). |
-| `PONG` | All -> All | Response to heartbeat with original timestamp. |
-| `TRANSFER_MOD` | Mod -> All | Signals the handoff of the Mod role to a specific player. |
+| `HEARTBEAT` | All -> All | Keep-alive with sequence number and timestamp. |
+| `PONG` | All -> All | Response to heartbeat with original timestamp and sequence. |
+| `TRANSFER_MOD` | Mod -> All | Signals handoff with current `GameState` to prevent regressions. |
 | `CLAIM_HOST` | Elected -> All | Broadcast during an election to claim the Mod role. |
 
 ---

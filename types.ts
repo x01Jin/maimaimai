@@ -138,7 +138,7 @@ export type ClientAction =
 
   | { type: 'FINISH_TURN'; payload: { sessionId: string; playerId: string } }
 
-  | { type: 'SEND_CHAT'; payload: { content: string; senderId: string; senderUuid: string; senderName: string } }
+  | { type: 'SEND_CHAT'; payload: { content: string; senderId: string; senderUuid: string; senderName: string; messageId: string } }
 
   | { type: 'UPDATE_PLAYER_STATUS'; payload: { playerId: string; isConnected: boolean } }
 
@@ -154,17 +154,17 @@ export type P2PMessage =
 
   | { type: 'PEER_DISCOVERY'; payload: { peers: Player[] } } // Sharing known peers
 
-  | { type: 'SYNC_STATE'; payload: { state: GameState, stateHash: string } } // Host broadcasting state
+  | { type: 'SYNC_STATE'; payload: { state: GameState, stateHash: string, lastAction?: ClientAction } } // Host broadcasting state
 
   | { type: 'ACTION'; payload: { action: ClientAction; from: string } } // Forwarding user intent to host
 
   | { type: 'CLAIM_HOST'; payload: { newHostId: string; sessionCode: string } } // Election result
 
-  | { type: 'HEARTBEAT'; payload: { id: string, timestamp: number } } // Keep-alive
+  | { type: 'HEARTBEAT'; payload: { id: string, timestamp: number, sequence: number } } // Keep-alive
 
-  | { type: 'PONG'; payload: { originalTimestamp: number } }
+  | { type: 'PONG'; payload: { originalTimestamp: number, sequence: number } }
 
-  | { type: 'TRANSFER_MOD', payload: { newModId: string } };
+  | { type: 'TRANSFER_MOD', payload: { newModId: string, state?: GameState } };
 
 
 export enum ConnectionStatus {

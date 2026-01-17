@@ -12,17 +12,29 @@ export const NETWORK_CONFIG = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      {
+        urls: [
+          'turn:openrelay.metered.ca:80',
+          'turn:openrelay.metered.ca:443',
+          'turn:openrelay.metered.ca:443?transport=tcp'
+        ],
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
     ],
   },
-  HEARTBEAT_INTERVAL_MS: 2000,
-  HOST_TIMEOUT_MS: 6000,
-  BEACON_RETRY_ATTEMPTS: 15,
-  BEACON_RETRY_DELAY_MS: 1000,
-  CONNECTION_RETRY_ATTEMPTS: 3,
-  CONNECTION_RETRY_DELAY_MS: 1500,
-  CONNECTION_TIMEOUT_MS: 3000,
+  HEARTBEAT_INTERVAL_MS: 3000,
+  ADAPTIVE_HEARTBEAT_MAX_MS: 10000, 
+  HOST_TIMEOUT_MS: 10000, // Increased for stability
+  BEACON_RETRY_ATTEMPTS: 20, // More retries
+  BEACON_RETRY_DELAY_MS: 1500, // Slightly longer delay
+  CONNECTION_RETRY_ATTEMPTS: 5,
+  CONNECTION_RETRY_DELAY_MS: 2000,
+  CONNECTION_TIMEOUT_MS: 5000,
   REORDER_DEBOUNCE_MS: 500,
-  HOST_TRANSFER_GRACE_MS: 5000
+  HOST_TRANSFER_GRACE_MS: 5000,
+  MAX_CHAT_HISTORY: 50
 } as const;
 
 // Storage Configuration

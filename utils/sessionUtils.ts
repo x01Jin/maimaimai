@@ -1,5 +1,6 @@
 import { GameState, ClientAction, Player, QueueEntry, ChatMessage } from '../types';
 import { generateUUID } from './storage';
+import { NETWORK_CONFIG } from '../constants';
 
 export const INITIAL_STATE: GameState = {
     players: [],
@@ -100,6 +101,14 @@ export const sessionUtils = (state: GameState, action: ClientAction, peerId: str
     // Base state with incremented version by default, can be overridden
     let nextState = { ...state, version: state.version + 1 };
 
+    // Truncate messages if they exceed limit
+    const limitMessages = (msgs: ChatMessage[]) => {
+        if (msgs.length > NETWORK_CONFIG.MAX_CHAT_HISTORY) {
+            return msgs.slice(msgs.length - NETWORK_CONFIG.MAX_CHAT_HISTORY);
+        }
+        return msgs;
+    };
+
     switch (action.type) {
         case 'JOIN_SESSION': {
             const { name, uuid } = action.payload;
@@ -130,11 +139,18 @@ export const sessionUtils = (state: GameState, action: ClientAction, peerId: str
                     lastSeen: Date.now()
                 };
                 nextState.players = [...nextState.players, newPlayer];
-                msg = `${name} joined the session.`;
-            }
-
-            if (msg) {
-                nextState.messages = [...nextState.messages, createSystemMessage(msg)];
+                
+                // Deterministic ID for join message to prevent duplicates during sync patching
+                const joinMsgId = `join-${uuid}-${nextState.version}`;
+                nextState.messages = [...nextState.messages, {
+                    id: joinMsgId,
+                    senderId: 'system',
+                    senderUuid: 'system',
+                    senderName: 'System',
+                    content: `${name} joined the session.`,
+                    timestamp: Date.now(),
+                    isSystem: true
+                }];
             }
             return nextState;
         }
@@ -324,7 +340,7 @@ export const sessionUtils = (state: GameState, action: ClientAction, peerId: str
             return {
                 ...nextState,
                 messages: [...nextState.messages, {
-                    id: generateUUID(),
+                    id: action.payload.messageId,
                     senderId: action.payload.senderId,
                     senderUuid: action.payload.senderUuid,
                     senderName: realName,
@@ -352,7 +368,112 @@ export const sessionUtils = (state: GameState, action: ClientAction, peerId: str
             };
         }
 
-        default:
-            return state;
-    }
-};
+                default:
+
+                    return state;
+
+            }
+
+        };
+
+        
+
+        // Final pass to ensure consistency and limits
+
+        
+
+        export const finalizeState = (state: GameState): GameState => {
+
+        
+
+            // Ensure all lists have unique IDs to prevent React key collisions
+
+        
+
+            const deduplicate = <T extends { id: string }>(list: T[]): T[] => {
+
+        
+
+                const seen = new Set();
+
+        
+
+                return list.filter(item => {
+
+        
+
+                    if (seen.has(item.id)) return false;
+
+        
+
+                    seen.add(item.id);
+
+        
+
+                    return true;
+
+        
+
+                });
+
+        
+
+            };
+
+        
+
+        
+
+        
+
+            const limitedMessages = state.messages.length > NETWORK_CONFIG.MAX_CHAT_HISTORY 
+
+        
+
+                ? state.messages.slice(-NETWORK_CONFIG.MAX_CHAT_HISTORY) 
+
+        
+
+                : state.messages;
+
+        
+
+        
+
+        
+
+            return {
+
+        
+
+                ...state,
+
+        
+
+                messages: deduplicate(limitedMessages),
+
+        
+
+                players: deduplicate(state.players),
+
+        
+
+                queue: deduplicate(state.queue),
+
+        
+
+                servicePeers: [...new Set(state.servicePeers)] // Unique IDs only
+
+        
+
+            };
+
+        
+
+        };
+
+        
+
+        
+
+        

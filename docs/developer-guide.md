@@ -20,8 +20,9 @@ To prevent stale closures in asynchronous WebRTC event listeners, the hook uses 
 
 - `connectionsRef`: A Map of active `DataConnection` objects.
 - `gameStateRef`: The latest authoritative state (synced with the React `gameState` state).
-- `qualityMetricsRef`: Rolling history of latencies and jitter for each peer.
+- `qualityMetricsRef`: Rolling history of latencies, jitter, and a `pendingSequences` map for packet loss calculation.
 - `modPeerIdRef`: Tracks the current Mod for heartbeat monitoring.
+- `heartbeatSequenceRef`: An incrementing counter used to uniquely identify heartbeat probes.
 
 #### Connection Lifecycle
 
@@ -36,16 +37,17 @@ Located in `utils/sessionUtils.ts`, this file contains the business logic for qu
 
 **Key Responsibilities:**
 
-- **Player Joining:** Handles new UUIDs vs. reconnecting UUIDs (ID swapping).
+- **Player Joining:** Handles new UUIDs vs. reconnecting UUIDs (ID swapping via `replacePlayerIdInGameState`).
 - **Queue Logic:** Automatically pairing players in `MATCH` mode, handling `PARTNER` joins, and managing the `currentSession`.
 - **Voting:** Implementing the `REQUEST_SOLO` and `CAST_VOTE` logic, including auto-approval thresholds.
-- **State Hashing:** Generating a unique hash of the state for optimized broadcasts.
+- **State Hashing:** Generating a unique hash of the state (`hashState`) for optimized broadcasts.
 
 ### QoS Calculation
 
 The `updateServicePeers` function (inside the hook) runs every 5 seconds on the Mod's client.
 
-- It calculates a score for every online player.
+- It calculates a score for every online player based on a weighted average of Latency, Jitter, and Packet Loss.
+- **Packet Loss Measurement:** The system sends a sequence-numbered `HEARTBEAT`. If a `PONG` with the matching sequence isn't received within 5s, it is marked as lost.
 - It picks the top 2 (excluding the Mod) to be additional `servicePeers`.
 - This ensures that if the Mod has a poor connection to some players, the other service peers can "bridge" the state updates.
 
@@ -73,11 +75,13 @@ The `updateServicePeers` function (inside the hook) runs every 5 seconds on the 
 
 Distributed systems are hard to test manually. Use these scenarios to verify stability:
 
-### 1. Mod Migration
+### 1. Mod Migration & State Continuity
 
 - Join with 3 players (A, B, C).
+- Send several chat messages from Player C.
 - Close Player A (Mod).
-- Verify that Player B or C becomes Mod within 10 seconds and the Beacon ID is transferred.
+- Verify that Player B or C becomes Mod within 10 seconds.
+- **Critical:** Verify that Player C's chat messages are still visible for the new Mod and other players (verifies atomic state handoff).
 
 ### 2. Service Peer Redundancy
 
@@ -90,7 +94,7 @@ Distributed systems are hard to test manually. Use these scenarios to verify sta
 
 - Join a session and enter the queue.
 - Refresh your browser.
-- Verify that your entry in the queue is still there and your name appears as "Online" (the system should have swapped your old Peer ID for your new one).
+- Verify that your entry in the queue is still there and your name appears as "Online" (the system should have swapped your old Peer ID for your new one using your persistent UUID).
 
 ---
 
