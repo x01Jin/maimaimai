@@ -27,3 +27,8 @@ dist-ssr
 references/
 changelogs/
 information/
+conductor/
+AGENTS.md
+CLAUDE.md
+WARP.md
+GEMINI.md

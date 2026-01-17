@@ -5,14 +5,14 @@ import { Users, Clock, Trash2, CloudLightning } from 'lucide-react';
 import { getIdentity, getRecentSessions, removeRecentSession, loadHostState, RecentSession } from '../utils/storage';
 
 interface LandingViewProps {
-    onHost: (name: string, recoverCode?: string) => void;
+    onCreateSession: (name: string, recoverCode?: string) => void;
     onJoin: (code: string, name: string) => void;
     isConnecting: boolean;
     error: string | null;
 }
 
 export const LandingView: React.FC<LandingViewProps> = ({
-    onHost,
+    onCreateSession,
     onJoin,
     isConnecting,
     error
@@ -128,7 +128,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
                     <Button
                         fullWidth
                         className="bg-orange-500 text-white hover:bg-orange-400 shadow-lg shadow-orange-500/20 mb-2"
-                        onClick={() => onHost(name, recoverableCode)}
+                        onClick={() => onCreateSession(name, recoverableCode)}
                         disabled={!name.trim() || isConnecting}
                     >
                         <div className="flex items-center justify-center gap-2">
@@ -141,7 +141,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
                 <Button
                     fullWidth
                     variant="primary"
-                    onClick={() => onHost(name)}
+                    onClick={() => onCreateSession(name)}
                     disabled={!name.trim() || isConnecting}
                 >
                     {isConnecting ? 'Creating...' : 'Host New Session'}

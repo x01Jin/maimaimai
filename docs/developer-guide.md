@@ -1,74 +1,109 @@
-
 # Developer Guide
 
-## Setup
+## Technical Stack
 
-This project uses **React 19** and **ES Modules** via an import map. No build step (Webpack/Vite) is strictly required for development, but a local server is needed to serve the files.
-
-### Prerequisites
-
-- Node.js (for serving) or any static file server (e.g., Python `http.server`, VS Code Live Server).
-
-*Note: P2P features (WebRTC) require a Secure Context (HTTPS) or `localhost`.*
+- **Framework:** React 19
+- **Bundler:** Vite
+- **Styling:** Tailwind CSS + Framer Motion
+- **Icons:** Lucide React
+- **Networking:** PeerJS (WebRTC)
 
 ## Core Concepts
 
 ### `usePeerSession` Hook
 
-This hook encapsulates the complex distributed system logic.
+The "Brain" of the application. It manages the PeerJS lifecycle, connection mesh, distributed election logic, and QoS monitoring.
 
-#### Key Internal Refs
+#### State vs. Refs
 
-To handle the asynchronous nature of WebRTC without stale closures, the hook relies heavily on `useRef`:
+To prevent stale closures in asynchronous WebRTC event listeners, the hook uses `useRef` for critical network state:
 
-- `pendingHostIdRef`: Used during host transfer. If we are passing the host to Peer B, we temporarily ignore "disconnect" events from Peer B. This is because destroying the Beacon (shared connection) often triggers a disconnect event, but we want to maintain the session via the direct mesh connection.
-- `lastHostPulseRef`: Tracks the timestamp of the last message from the Host. Used by the "Monitor Loop" to trigger elections if the host goes silent for >6 seconds.
-- `gameStateRef`: Keeps a reference to the latest state for use inside event listeners (like `peer.on('data')`) where the React closure might otherwise be stale.
+- `connectionsRef`: A Map of active `DataConnection` objects.
+- `gameStateRef`: The latest authoritative state (synced with the React `gameState` state).
+- `qualityMetricsRef`: Rolling history of latencies, jitter, and a `pendingSequences` map for packet loss calculation.
+- `modPeerIdRef`: Tracks the current Mod for heartbeat monitoring.
+- `heartbeatSequenceRef`: An incrementing counter used to uniquely identify heartbeat probes.
 
-#### Connection Retry Logic
+#### Connection Lifecycle
 
-The `joinSession` function implements an exponential backoff retry mechanism. This is critical during Host Migration: if a user tries to join exactly when the Beacon is being swapped from Old Host to New Host, the connection might fail. The retry logic ensures they eventually connect once the New Host captures the Beacon.
+1. **Discovery Phase:** Connect to `mai-q-[CODE]` Beacon.
+2. **Handshake Phase:** Send `HELLO` -> Receive `PEER_DISCOVERY`.
+3. **Mesh Phase:** Connect to all IDs in `PEER_DISCOVERY`.
+4. **Sync Phase:** Receive `SYNC_STATE` from a service peer.
 
-### `sessionUtils` (in `sessionUtils.ts`)
+### `sessionUtils` (The Reducer)
 
-All state mutations happen here. It must remain pure.
+Located in `utils/sessionUtils.ts`, this file contains the business logic for queue management. It is a pure function: `(GameState, ClientAction, PeerID) => GameState`.
 
-- **Input:** `(State, Action, PeerID)`
-- **Output:** `NewState`
+**Key Responsibilities:**
 
-When adding new actions:
+- **Player Joining:** Handles new UUIDs vs. reconnecting UUIDs (ID swapping via `replacePlayerIdInGameState`).
+- **Queue Logic:** Automatically pairing players in `MATCH` mode, handling `PARTNER` joins, and managing the `currentSession`.
+- **Voting:** Implementing the `REQUEST_SOLO` and `CAST_VOTE` logic, including auto-approval thresholds.
+- **State Hashing:** Generating a unique hash of the state (`hashState`) for optimized broadcasts.
 
-1. Define the action type in `types.ts`.
-2. Add the case in `sessionUtils.ts` (inside `sessionUtils` function).
-3. Ensure `version` is incremented.
-4. If the action requires specific permissions (e.g., only Host can remove players), enforce that check within the UI or the reducer logic.
+### QoS Calculation
 
-## Contribution Guidelines
+The `updateServicePeers` function (inside the hook) runs every 5 seconds on the Mod's client.
 
-1. **Stateless UI:** Keep views (QueueView, PlayersView) as stateless as possible; rely on the `gameState` passed from the hook.
-2. **Protocol Changes:** If you modify `types.ts`, ensure backward compatibility or increment the protocol version if breaking changes are made.
-3. **Testing:**
-    - Test **Host Transfer** by having the host explicitly pass the role.
-    - Test **Host Failure** by closing the host tab abruptly.
-    - Test **Rejoining** by having a host leave and try to join again immediately.
-
-## Deployment (GitHub Pages)
-
-This repository is set up to deploy a **project site** to GitHub Pages (e.g. <https://x01jin.github.io/maimaimai>).
-
-Quick steps:
-
-1. Ensure `homepage` in `package.json` is set to `https://<your-username>.github.io/<repo-name>` (already set for `x01jin/maimaimai`).
-2. Install the dev dependency: `npm install --save-dev gh-pages`.
-3. Build and deploy:
-
-   - `npm run predeploy` (or `npm run build`)
-   - `npm run deploy` (pushes the `dist` folder to the `gh-pages` branch)
-
-Notes:
-
-- `vite.config.ts` has `base` configured to `'/maimaimai/'` so static assets resolve correctly on GitHub Pages.
-- For a user/org site (`username.github.io`), set `base` to `'/'` and use the repository name accordingly.
-- The deployment will publish to the `gh-pages` branch; you can configure the GitHub Pages source in the repository settings if necessary.
+- It calculates a score for every online player based on a weighted average of Latency, Jitter, and Packet Loss.
+- **Packet Loss Measurement:** The system sends a sequence-numbered `HEARTBEAT`. If a `PONG` with the matching sequence isn't received within 5s, it is marked as lost.
+- It picks the top 2 (excluding the Mod) to be additional `servicePeers`.
+- This ensures that if the Mod has a poor connection to some players, the other service peers can "bridge" the state updates.
 
 ---
+
+## Development Workflow
+
+### Adding a New Feature
+
+1. **Define Type:** Add the new action to `ClientAction` in `types.ts`.
+2. **Implement Logic:** Add the case in `sessionUtils.ts`. Increment the `version`.
+3. **Expose Action:** Add a wrapper function in `usePeerSession.ts` that calls `sendAction`.
+4. **Update UI:** Use the new function in the relevant View.
+
+### Local Development
+
+1. `npm install`
+2. `npm run dev`
+
+*Important: PeerJS requires a Secure Context. Access via `localhost:5173`. To test between devices on the same network, you may need to use a tool like `localtunnel` or `ngrok` to provide an HTTPS endpoint.*
+
+---
+
+## Testing Strategies
+
+Distributed systems are hard to test manually. Use these scenarios to verify stability:
+
+### 1. Mod Migration & State Continuity
+
+- Join with 3 players (A, B, C).
+- Send several chat messages from Player C.
+- Close Player A (Mod).
+- Verify that Player B or C becomes Mod within 10 seconds.
+- **Critical:** Verify that Player C's chat messages are still visible for the new Mod and other players (verifies atomic state handoff).
+
+### 2. Service Peer Redundancy
+
+- Join with 4 players.
+- Identify the 3 service peers.
+- Disconnect one of the *non-mod* service peers.
+- Verify that the Mod selects a new service peer and the queue remains functional.
+
+### 3. ID Recovery
+
+- Join a session and enter the queue.
+- Refresh your browser.
+- Verify that your entry in the queue is still there and your name appears as "Online" (the system should have swapped your old Peer ID for your new one using your persistent UUID).
+
+---
+
+## Deployment
+
+The project is deployed via GitHub Pages using the `gh-pages` package.
+
+```bash
+npm run deploy
+```
+
+Configuration is handled in `vite.config.ts` (`base` path) and `package.json` (`homepage` field).

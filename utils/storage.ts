@@ -1,4 +1,5 @@
 import { GameState } from "../types";
+import { STORAGE_CONFIG } from "../constants";
 
 interface UserIdentity {
   uuid: string;
@@ -7,13 +8,9 @@ interface UserIdentity {
 
 export interface RecentSession {
   code: string;
-  hostName?: string; // Optional if we want to store it
+  hostName?: string;
   lastJoined: number;
 }
-
-const KEY_IDENTITY = 'maimaimai_identity';
-const KEY_HISTORY = 'maimaimai_history';
-const KEY_HOST_STATE = 'maimaimai_host_state_';
 
 export const generateUUID = (): string => {
   // Fallback for non-secure contexts (HTTP) where crypto.randomUUID is undefined
@@ -33,7 +30,7 @@ export const generateUUID = (): string => {
 
 export const getIdentity = (): UserIdentity => {
   try {
-    const stored = localStorage.getItem(KEY_IDENTITY);
+    const stored = localStorage.getItem(STORAGE_CONFIG.IDENTITY_KEY);
     if (stored) {
       return JSON.parse(stored);
     }
@@ -46,7 +43,6 @@ export const getIdentity = (): UserIdentity => {
     uuid: generateUUID(),
     name: ''
   };
-  // Don't save yet until name is set? Or save immediately.
   return newId;
 };
 
@@ -56,13 +52,13 @@ export const saveIdentity = (name: string, uuid?: string) => {
     uuid: uuid || current.uuid,
     name
   };
-  localStorage.setItem(KEY_IDENTITY, JSON.stringify(data));
+  localStorage.setItem(STORAGE_CONFIG.IDENTITY_KEY, JSON.stringify(data));
   return data;
 };
 
 export const getRecentSessions = (): RecentSession[] => {
   try {
-    const stored = localStorage.getItem(KEY_HISTORY);
+    const stored = localStorage.getItem(STORAGE_CONFIG.HISTORY_KEY);
     return stored ? JSON.parse(stored) : [];
   } catch {
     return [];
@@ -77,20 +73,20 @@ export const addRecentSession = (code: string) => {
     code,
     lastJoined: Date.now()
   };
-  const updated = [newEntry, ...filtered].slice(0, 10); // Keep last 10
-  localStorage.setItem(KEY_HISTORY, JSON.stringify(updated));
+  const updated = [newEntry, ...filtered].slice(0, STORAGE_CONFIG.MAX_RECENT_SESSIONS);
+  localStorage.setItem(STORAGE_CONFIG.HISTORY_KEY, JSON.stringify(updated));
 };
 
 export const removeRecentSession = (code: string) => {
   const history = getRecentSessions();
   const updated = history.filter(h => h.code !== code);
-  localStorage.setItem(KEY_HISTORY, JSON.stringify(updated));
+  localStorage.setItem(STORAGE_CONFIG.HISTORY_KEY, JSON.stringify(updated));
 };
 
 // Host State Persistence
 export const saveHostState = (code: string, state: GameState) => {
   try {
-    localStorage.setItem(KEY_HOST_STATE + code, JSON.stringify(state));
+    localStorage.setItem(STORAGE_CONFIG.HOST_STATE_KEY_PREFIX + code, JSON.stringify(state));
   } catch (e) {
     console.error("Failed to save host state", e);
   }
@@ -98,7 +94,7 @@ export const saveHostState = (code: string, state: GameState) => {
 
 export const loadHostState = (code: string): GameState | null => {
   try {
-    const stored = localStorage.getItem(KEY_HOST_STATE + code);
+    const stored = localStorage.getItem(STORAGE_CONFIG.HOST_STATE_KEY_PREFIX + code);
     return stored ? JSON.parse(stored) : null;
   } catch {
     return null;
@@ -106,5 +102,5 @@ export const loadHostState = (code: string): GameState | null => {
 };
 
 export const clearHostState = (code: string) => {
-  localStorage.removeItem(KEY_HOST_STATE + code);
+  localStorage.removeItem(STORAGE_CONFIG.HOST_STATE_KEY_PREFIX + code);
 };
