@@ -40,11 +40,8 @@ const QueueItem: React.FC<QueueItemProps> = ({
     const controls = useDragControls();
     const playersInEntry = item.playerIds.map(id => players.find((p: any) => p.id === id)).filter(Boolean);
     const isMeIn = item.playerIds.includes(myId);
-
-    // Permission logic:
-    // User can remove if they are in it (Leave)
-    // Host can remove if they are NOT in it (Admin remove) or if they ARE in it (Leave)
-    const canRemoveEntry = isMod || isMeIn;
+    const canLeave = isMeIn;
+    const canRemove = isMod && !isMeIn;
 
     return (
         <Reorder.Item
@@ -71,10 +68,10 @@ const QueueItem: React.FC<QueueItemProps> = ({
                         {item.type}
                     </div>
                 </div>
-                {canRemoveEntry && (
-                    <button
-                        onClick={() => {
-                            if (isMeIn) {
+                <div className="flex items-center gap-1">
+                    {canLeave && (
+                        <button
+                            onClick={() => {
                                 promptConfirm(
                                     "Leave Queue?",
                                     "Are you sure you want to leave the queue?",
@@ -82,7 +79,16 @@ const QueueItem: React.FC<QueueItemProps> = ({
                                     "danger",
                                     "Leave"
                                 );
-                            } else if (isMod) {
+                            }}
+                            className="px-2 py-1 text-xs text-slate-400 hover:text-red-400 transition-colors bg-slate-800/50 hover:bg-slate-700 rounded"
+                            title="Leave Queue"
+                        >
+                            Leave
+                        </button>
+                    )}
+                    {canRemove && (
+                        <button
+                            onClick={() => {
                                 promptConfirm(
                                     "Remove Queue Entry?",
                                     "Are you sure you want to remove this entire entry?",
@@ -90,13 +96,31 @@ const QueueItem: React.FC<QueueItemProps> = ({
                                     "danger",
                                     "Remove"
                                 );
-                            }
-                        }}
-                        className="p-1 text-slate-500 hover:text-red-400 transition-colors"
-                    >
-                        <X size={16} />
-                    </button>
-                )}
+                            }}
+                            className="p-1 text-slate-500 hover:text-red-400 transition-colors"
+                            title="Remove Queue Entry"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
+                    {isMod && isMeIn && (
+                        <button
+                            onClick={() => {
+                                promptConfirm(
+                                    "Remove Queue Entry?",
+                                    "As a mod, you cannot remove a queue you are currently in. Please leave the queue first.",
+                                    () => {},
+                                    "neutral",
+                                    "OK"
+                                );
+                            }}
+                            className="p-1 text-slate-600 hover:text-slate-400 transition-colors opacity-50 cursor-not-allowed"
+                            title="Cannot remove your own queue"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="flex gap-2">

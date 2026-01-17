@@ -361,12 +361,17 @@ export const sessionUtils = (state: GameState, action: ClientAction, peerId: str
             return { ...nextState, queue: newQueue, messages };
         }
 
-        case 'REMOVE_FROM_QUEUE':
+        case 'REMOVE_FROM_QUEUE': {
+            const queueEntry = nextState.queue.find(q => q.id === action.payload.queueId);
+            if (queueEntry && queueEntry.playerIds.includes(peerId)) {
+                return state;
+            }
             return {
                 ...nextState,
                 queue: nextState.queue.filter(q => q.id !== action.payload.queueId),
                 messages: [...nextState.messages, createSystemMessage('Mod removed an entry from the queue.')]
             };
+        }
 
         case 'REORDER_QUEUE': {
             const idMap = new Map(nextState.queue.map(q => [q.id, q]));
