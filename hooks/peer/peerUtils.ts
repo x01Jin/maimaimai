@@ -1,6 +1,7 @@
-import { ID_PREFIX } from '../../constants';
+import { ID_PREFIX } from "../../constants";
 
-export const generateShortCode = () => Math.random().toString(36).substring(2, 6).toUpperCase();
+export const generateShortCode = () =>
+  Math.random().toString(36).substring(2, 6).toUpperCase();
 
 export const getBeaconId = (code: string) => `${ID_PREFIX}${code}`;
 

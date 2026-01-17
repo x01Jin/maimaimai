@@ -1,6 +1,6 @@
-import React from 'react';
-import { Modal } from './Modal';
-import { Button } from './Button';
+import React from "react";
+import { Modal } from "./Modal";
+import { Button } from "./Button";
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -10,7 +10,7 @@ interface ConfirmationModalProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: 'danger' | 'neutral' | 'primary';
+  variant?: "danger" | "neutral" | "primary";
 }
 
 export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -19,9 +19,9 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   onConfirm,
   title,
   message,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
-  variant = 'danger'
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  variant = "danger",
 }) => {
   return (
     <Modal
@@ -34,7 +34,13 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             {cancelText}
           </Button>
           <Button
-            variant={variant === 'neutral' ? 'primary' : variant === 'primary' ? 'primary' : 'danger'}
+            variant={
+              variant === "neutral"
+                ? "primary"
+                : variant === "primary"
+                  ? "primary"
+                  : "danger"
+            }
             onClick={() => {
               onConfirm();
               onClose();
