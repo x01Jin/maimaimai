@@ -134,9 +134,13 @@ export type ClientAction =
 
   | { type: 'REMOVE_FROM_QUEUE'; payload: { queueId: string } }
 
+  | { type: 'KICK_PLAYER'; payload: { playerId: string; queueId: string } }
+
   | { type: 'REORDER_QUEUE'; payload: { queueIds: string[] } }
 
   | { type: 'FINISH_TURN'; payload: { sessionId: string; playerId: string } }
+
+  | { type: 'FORCE_FINISH_TURN'; payload: { sessionId: string } }
 
   | { type: 'SEND_CHAT'; payload: { content: string; senderId: string; senderUuid: string; senderName: string; messageId: string } }
 

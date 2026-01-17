@@ -1,8 +1,8 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Reorder } from 'framer-motion';
+import { Reorder, useDragControls } from 'framer-motion';
 import { Button } from '../components/Button';
-import { Copy, Music, Play, Check, WifiOff, CheckCircle, ListOrdered, GripVertical, X, UserPlus, Users, User } from 'lucide-react';
+import { ConfirmationModal } from '../components/ConfirmationModal';
+import { Copy, Music, Play, Check, WifiOff, CheckCircle, ListOrdered, GripVertical, X, UserPlus, Users, User, Ban } from 'lucide-react';
 import { GameState, QueueEntry, Player } from '../types';
 import { UsePeerSessionReturn } from '../hooks/usePeerSession';
 import { NETWORK_CONFIG } from '../constants';
@@ -14,6 +14,152 @@ interface QueueViewProps {
     isMod: boolean;
 }
 
+interface QueueItemProps {
+    item: QueueEntry;
+    index: number;
+    players: Player[];
+    myId: string;
+    isMod: boolean;
+    session: UsePeerSessionReturn;
+    promptConfirm: (title: string, message: string, onConfirm: () => void, variant?: 'danger' | 'neutral' | 'primary', confirmText?: string) => void;
+    getEntryColor: (type: string) => string;
+    getEntryIcon: (type: string) => React.ReactNode;
+}
+
+const QueueItem: React.FC<QueueItemProps> = ({
+    item,
+    index,
+    players,
+    myId,
+    isMod,
+    session,
+    promptConfirm,
+    getEntryColor,
+    getEntryIcon
+}) => {
+    const controls = useDragControls();
+    const playersInEntry = item.playerIds.map(id => players.find((p: any) => p.id === id)).filter(Boolean);
+    const isMeIn = item.playerIds.includes(myId);
+
+    // Permission logic:
+    // User can remove if they are in it (Leave)
+    // Host can remove if they are NOT in it (Admin remove) or if they ARE in it (Leave)
+    const canRemoveEntry = isMod || isMeIn;
+
+    return (
+        <Reorder.Item
+            value={item}
+            dragListener={false}
+            dragControls={controls}
+            className={`relative flex flex-col p-3 rounded-xl border-l-4 shadow-sm ${getEntryColor(item.type)} ${isMeIn ? 'bg-slate-800' : 'bg-slate-800/50'}`}
+        >
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                    {isMod && (
+                        <div 
+                            onPointerDown={(e) => controls.start(e)}
+                            className="touch-none cursor-grab active:cursor-grabbing p-1 -ml-1"
+                        >
+                            <GripVertical size={20} className="text-slate-500" />
+                        </div>
+                    )}
+                    <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center font-bold text-slate-300 text-xs shadow-inner">
+                        {index + 1}
+                    </div>
+                    <div className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-slate-400">
+                        {getEntryIcon(item.type)}
+                        {item.type}
+                    </div>
+                </div>
+                {canRemoveEntry && (
+                    <button
+                        onClick={() => {
+                            if (isMeIn) {
+                                promptConfirm(
+                                    "Leave Queue?",
+                                    "Are you sure you want to leave the queue?",
+                                    () => session.leaveQueue(item.id),
+                                    "danger",
+                                    "Leave"
+                                );
+                            } else if (isMod) {
+                                promptConfirm(
+                                    "Remove Queue Entry?",
+                                    "Are you sure you want to remove this entire entry?",
+                                    () => session.removeFromQueue(item.id),
+                                    "danger",
+                                    "Remove"
+                                );
+                            }
+                        }}
+                        className="p-1 text-slate-500 hover:text-red-400 transition-colors"
+                    >
+                        <X size={16} />
+                    </button>
+                )}
+            </div>
+
+            <div className="flex gap-2">
+                <div className="flex-1 bg-slate-900/50 p-2 rounded-lg flex items-center justify-between text-sm font-medium text-white border border-slate-700/50 relative">
+                    <div className="flex items-center gap-2">
+                        {playersInEntry[0]?.name || 'Unknown'}
+                        {playersInEntry[0]?.id === myId && ' (You)'}
+                        {!playersInEntry[0]?.isConnected && <WifiOff size={12} className="text-red-500" />}
+                    </div>
+                    {isMod && playersInEntry[0] && (
+                        <button 
+                            onClick={() => promptConfirm(
+                                "Kick Player?",
+                                `Kick ${playersInEntry[0].name} from the queue?`,
+                                () => session.kickPlayer(item.id, playersInEntry[0].id),
+                                "danger",
+                                "Kick"
+                            )}
+                            className="p-2 text-slate-500 hover:text-red-400 transition-colors bg-slate-800/50 rounded-md"
+                            title="Kick Player"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
+                </div>
+                
+                <div className={`flex-1 p-2 rounded-lg flex items-center justify-center text-sm font-medium border border-dashed ${item.type === 'SOLO' ? 'bg-orange-500/5 border-orange-500/30 text-orange-500/50' : 'bg-slate-900/30 border-slate-700 text-slate-500'} relative`}>
+                    {item.type === 'SOLO' ? (
+                        <span className="text-xs uppercase font-bold">Locked</span>
+                    ) : (
+                        playersInEntry[1] ? (
+                            <div className="flex items-center justify-between w-full">
+                                <div className="flex items-center">
+                                    {playersInEntry[1].name}
+                                    {playersInEntry[1].id === myId && ' (You)'}
+                                    {!playersInEntry[1].isConnected && <WifiOff size={12} className="ml-2 text-red-500" />}
+                                </div>
+                                {isMod && (
+                                    <button 
+                                        onClick={() => promptConfirm(
+                                            "Kick Player?",
+                                            `Kick ${playersInEntry[1].name} from the queue?`,
+                                            () => session.kickPlayer(item.id, playersInEntry[1].id),
+                                            "danger",
+                                            "Kick"
+                                        )}
+                                        className="p-2 text-slate-500 hover:text-red-400 transition-colors bg-slate-800/50 rounded-md"
+                                        title="Kick Player"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            <span className="text-xs italic opacity-50">Waiting...</span>
+                        )
+                    )}
+                </div>
+            </div>
+        </Reorder.Item>
+    );
+};
+
 export const QueueView: React.FC<QueueViewProps> = ({
     gameState,
     myId,
@@ -24,6 +170,29 @@ export const QueueView: React.FC<QueueViewProps> = ({
     const [partnerSelectMode, setPartnerSelectMode] = useState(false);
     const { currentSession, queue, players, sessionName, finishApprovals } = gameState;
 
+    // Confirmation Modal State
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        confirmText?: string;
+        variant?: 'danger' | 'neutral' | 'primary';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {},
+    });
+
+    const promptConfirm = (title: string, message: string, onConfirm: () => void, variant: 'danger' | 'neutral' | 'primary' = 'danger', confirmText = 'Confirm') => {
+        setConfirmModal({ isOpen: true, title, message, onConfirm, variant, confirmText });
+    };
+
+    const closeConfirm = () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+    };
+
     // Local state for dragging to prevent jitter
     const [localQueue, setLocalQueue] = useState(queue);
 
@@ -31,10 +200,6 @@ export const QueueView: React.FC<QueueViewProps> = ({
     const reorderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
-        // Sync when source changes, unless we are potentially in a drag operation?
-        // Actually framer motion handles the drag state on localQueue. 
-        // We just need to make sure we don't overwrite if we are the ones reordering?
-        // But since this is a simple P2P, simply syncing is safer to avoid desyncs.
         setLocalQueue(queue);
     }, [queue]);
 
@@ -42,7 +207,6 @@ export const QueueView: React.FC<QueueViewProps> = ({
         setLocalQueue(newOrder);
 
         if (isMod) {
-            // Debounce the network call
             if (reorderTimeoutRef.current) {
                 clearTimeout(reorderTimeoutRef.current);
             }
@@ -109,37 +273,62 @@ export const QueueView: React.FC<QueueViewProps> = ({
                                 <Play size={64} />
                             </div>
                             <div className="flex justify-between items-start mb-4 relative z-0">
-                                <div className="flex gap-2 text-white font-bold text-lg">
+                                <div className="flex gap-2 text-white font-bold text-lg w-full">
                                     {currentSession.playerIds.map((id: string) => {
                                         const p = players.find((pl: any) => pl.id === id);
                                         const isDone = finishApprovals?.includes(id);
                                         return (
-                                            <div key={id} className={`px-3 py-1 rounded-lg border border-slate-600 flex items-center gap-2 ${p?.isConnected ? 'bg-slate-700/50' : 'bg-red-500/20 border-red-500/50'}`}>
-                                                {p?.name || 'Unknown'}
-                                                {isDone && <Check size={14} className="text-green-400" />}
-                                                {!p?.isConnected && <WifiOff size={12} className="text-red-400" />}
+                                            <div key={id} className={`flex-1 px-3 py-1 rounded-lg border border-slate-600 flex items-center justify-between gap-2 ${p?.isConnected ? 'bg-slate-700/50' : 'bg-red-500/20 border-red-500/50'}`}>
+                                                <div className="flex items-center gap-2">
+                                                    {p?.name || 'Unknown'}
+                                                    {isDone && <Check size={14} className="text-green-400" />}
+                                                    {!p?.isConnected && <WifiOff size={12} className="text-red-400" />}
+                                                </div>
                                             </div>
                                         )
                                     })}
                                 </div>
                             </div>
 
-                            {isMePlaying && (
-                                <Button
-                                    fullWidth
-                                    variant={haveIApprovedFinish ? "secondary" : "primary"}
-                                    onClick={session.finishTurn}
-                                    className="relative z-0"
-                                    disabled={haveIApprovedFinish}
-                                >
-                                    {haveIApprovedFinish ? (
-                                        <><Check size={20} className="mr-2 inline" /> Waiting for partner...</>
-                                    ) : (
-                                        <><CheckCircle size={20} className="mr-2 inline" /> Finish Turn</>
-                                    )}
-                                </Button>
-                            )}
-                            {!isMePlaying && (
+                            <div className="flex gap-2 relative z-0">
+                                {isMePlaying && (
+                                    <Button
+                                        fullWidth
+                                        variant={haveIApprovedFinish ? "secondary" : "primary"}
+                                        onClick={() => promptConfirm(
+                                            "Finish Turn?", 
+                                            "Are you sure you want to finish your turn?", 
+                                            session.finishTurn,
+                                            "primary",
+                                            "Yes, Finish"
+                                        )}
+                                        disabled={haveIApprovedFinish}
+                                    >
+                                        {haveIApprovedFinish ? (
+                                            <><Check size={20} className="mr-2 inline" /> Waiting for partner...</>
+                                        ) : (
+                                            <><CheckCircle size={20} className="mr-2 inline" /> Finish Turn</>
+                                        )}
+                                    </Button>
+                                )}
+                                {isMod && (
+                                    <Button
+                                        variant="danger"
+                                        className="whitespace-nowrap"
+                                        onClick={() => promptConfirm(
+                                            "Force Finish Turn?",
+                                            "Are you sure you want to force finish the current turn? This will immediately clear the current session.",
+                                            session.forceFinishTurn,
+                                            "danger",
+                                            "Force Finish"
+                                        )}
+                                    >
+                                        <Ban size={20} />
+                                    </Button>
+                                )}
+                            </div>
+                            
+                            {!isMePlaying && !isMod && (
                                 <div className="text-center text-xs text-slate-500 italic">
                                     Players are playing... {finishApprovals?.length > 0 && `(${finishApprovals.length} finished)`}
                                 </div>
@@ -161,72 +350,20 @@ export const QueueView: React.FC<QueueViewProps> = ({
                         </div>
                     ) : (
                         <Reorder.Group axis="y" values={localQueue} onReorder={handleReorder} className="space-y-3">
-                            {localQueue.map((item: QueueEntry, index: number) => {
-                                const playersInEntry = item.playerIds.map(id => players.find((p: any) => p.id === id)).filter(Boolean);
-                                const isMeIn = item.playerIds.includes(myId);
-
-                                // Permission logic:
-                                // User can remove if they are in it (Leave)
-                                // Host can remove if they are NOT in it (Admin remove) or if they ARE in it (Leave)
-                                // UI: Just a button, action determined by membership
-                                const canRemove = isMod || isMeIn;
-
-                                return (
-                                    <Reorder.Item
-                                        key={item.id}
-                                        value={item}
-                                        dragListener={isMod}
-                                        className={`relative flex flex-col p-3 rounded-xl border-l-4 shadow-sm ${getEntryColor(item.type)} ${isMeIn ? 'bg-slate-800' : 'bg-slate-800/50'}`}
-                                    >
-                                        <div className="flex items-center justify-between mb-2">
-                                            <div className="flex items-center gap-2">
-                                                {isMod && <GripVertical size={16} className="text-slate-500 cursor-grab active:cursor-grabbing" />}
-                                                <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center font-bold text-slate-300 text-xs shadow-inner">
-                                                    {index + 1}
-                                                </div>
-                                                <div className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-slate-400">
-                                                    {getEntryIcon(item.type)}
-                                                    {item.type}
-                                                </div>
-                                            </div>
-                                            {canRemove && (
-                                                <button
-                                                    onClick={() => {
-                                                        if (isMeIn) session.leaveQueue(item.id);
-                                                        else if (isMod) session.removeFromQueue(item.id);
-                                                    }}
-                                                    className="p-1 text-slate-500 hover:text-red-400 transition-colors"
-                                                >
-                                                    <X size={16} />
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        <div className="flex gap-2">
-                                            <div className="flex-1 bg-slate-900/50 p-2 rounded-lg flex items-center justify-center text-sm font-medium text-white border border-slate-700/50">
-                                                {playersInEntry[0]?.name || 'Unknown'}
-                                                {playersInEntry[0]?.id === myId && ' (You)'}
-                                                {!playersInEntry[0]?.isConnected && <WifiOff size={12} className="ml-2 text-red-500" />}
-                                            </div>
-                                            <div className={`flex-1 p-2 rounded-lg flex items-center justify-center text-sm font-medium border border-dashed ${item.type === 'SOLO' ? 'bg-orange-500/5 border-orange-500/30 text-orange-500/50' : 'bg-slate-900/30 border-slate-700 text-slate-500'}`}>
-                                                {item.type === 'SOLO' ? (
-                                                    <span className="text-xs uppercase font-bold">Locked</span>
-                                                ) : (
-                                                    playersInEntry[1] ? (
-                                                        <div className="flex items-center">
-                                                            {playersInEntry[1].name}
-                                                            {playersInEntry[1].id === myId && ' (You)'}
-                                                            {!playersInEntry[1].isConnected && <WifiOff size={12} className="ml-2 text-red-500" />}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-xs italic opacity-50">Waiting...</span>
-                                                    )
-                                                )}
-                                            </div>
-                                        </div>
-                                    </Reorder.Item>
-                                )
-                            })}
+                            {localQueue.map((item: QueueEntry, index: number) => (
+                                <QueueItem 
+                                    key={item.id}
+                                    item={item}
+                                    index={index}
+                                    players={players}
+                                    myId={myId}
+                                    isMod={isMod}
+                                    session={session}
+                                    promptConfirm={promptConfirm}
+                                    getEntryColor={getEntryColor}
+                                    getEntryIcon={getEntryIcon}
+                                />
+                            ))}
                         </Reorder.Group>
                     )}
                 </div>
@@ -297,6 +434,16 @@ export const QueueView: React.FC<QueueViewProps> = ({
                     <Play size={20} className="fill-current" /> Join Queue
                 </Button>
             </div>
+
+            <ConfirmationModal
+                isOpen={confirmModal.isOpen}
+                onClose={closeConfirm}
+                onConfirm={confirmModal.onConfirm}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                confirmText={confirmModal.confirmText}
+                variant={confirmModal.variant}
+            />
         </div>
     );
 };

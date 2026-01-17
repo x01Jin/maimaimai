@@ -83,6 +83,6 @@ The current Mod automatically saves the `GameState` to `localStorage` on every u
 
 If the current Mod disconnects unexpectedly, the mesh performs an automatic election to maintain the Beacon and authority:
 
-1. **Detection:** All peers monitor the Mod's heartbeat. If no pulse is detected for `HOST_TIMEOUT_MS` (6s), an election is triggered.
+1. **Detection:** All peers monitor the Mod's heartbeat. If no pulse is detected for `HOST_TIMEOUT_MS` (10s), an election is triggered.
 2. **Seniority:** The candidate pool is filtered for online players. The player with the **earliest `joinedAt` timestamp** (the "oldest" player) is automatically elected.
 3. **Promotion:** The winner promotes themselves to Mod, attempts to capture the session's Beacon ID, and broadcasts a `SYNC_STATE` with an authority bump (`version + 10`).

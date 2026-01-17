@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePeerSession } from './hooks/usePeerSession';
 import { ConnectionStatus, AppNotification } from './types';
-import { Button, Modal, ToastContainer } from './components';
+import { Button, Modal, ToastContainer, ConfirmationModal } from './components';
 import { generateUUID } from './utils';
 import { Users, LogOut, MessageSquare, ListOrdered } from 'lucide-react';
 
@@ -198,19 +198,15 @@ export default function App() {
         </div>
       </div>
 
-      <Modal
+      <ConfirmationModal
         isOpen={confirmLeave}
         onClose={() => setConfirmLeave(false)}
+        onConfirm={session.leaveSession}
         title="Leave Session?"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setConfirmLeave(false)}>Cancel</Button>
-            <Button variant="danger" onClick={() => { setConfirmLeave(false); session.leaveSession(); }}>Leave</Button>
-          </>
-        }
-      >
-        <p className="text-slate-300">Are you sure you want to leave? You can rejoin later from the history.</p>
-      </Modal>
+        message="Are you sure you want to leave? You can rejoin later from the history."
+        confirmText="Leave"
+        variant="danger"
+      />
     </div>
   );
 }

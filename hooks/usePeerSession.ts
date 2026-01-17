@@ -41,8 +41,10 @@ interface UsePeerSessionReturn {
   castVote: (approve: boolean) => void;
   leaveQueue: (queueId: string) => void;
   removeFromQueue: (queueId: string) => void;
+  kickPlayer: (queueId: string, playerId: string) => void;
   reorderQueue: (queueIds: string[]) => void;
   finishTurn: () => void;
+  forceFinishTurn: () => void;
   sendMessage: (content: string) => void;
   transferMod: (targetId: string) => void;
   disconnect: () => void;
@@ -345,10 +347,12 @@ export const usePeerSession = (): UsePeerSessionReturn => {
     joinQueuePartner: (partnerId) => sendAction({ type: 'JOIN_QUEUE_PARTNER', payload: { playerId: myId, partnerId } }),
     requestSolo: () => sendAction({ type: 'REQUEST_SOLO', payload: { playerId: myId, playerName: getIdentity().name } }),
     castVote: (approve) => gameState.activeVote && sendAction({ type: 'CAST_VOTE', payload: { voteId: gameState.activeVote.id, playerId: myId, approve } }),
-    finishTurn: () => gameState.currentSession && sendAction({ type: 'FINISH_TURN', payload: { sessionId: gameState.currentSession.id, playerId: myId } }),
     leaveQueue: (queueId) => sendAction({ type: 'LEAVE_QUEUE', payload: { playerId: myId, queueId } }),
     removeFromQueue: (queueId) => sendAction({ type: 'REMOVE_FROM_QUEUE', payload: { queueId } }),
+    kickPlayer: (queueId, playerId) => sendAction({ type: 'KICK_PLAYER', payload: { playerId, queueId } }),
     reorderQueue: (queueIds) => sendAction({ type: 'REORDER_QUEUE', payload: { queueIds } }),
+    finishTurn: () => gameState.currentSession && sendAction({ type: 'FINISH_TURN', payload: { sessionId: gameState.currentSession.id, playerId: myId } }),
+    forceFinishTurn: () => gameState.currentSession && sendAction({ type: 'FORCE_FINISH_TURN', payload: { sessionId: gameState.currentSession.id } }),
     sendMessage: (content) => content.trim() && sendAction({
         type: 'SEND_CHAT',
         payload: { content, senderId: myId, senderUuid: myUuid, senderName: getIdentity().name, messageId: generateUUID() }

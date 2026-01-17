@@ -4,9 +4,10 @@
 
 - **Framework:** React 19
 - **Bundler:** Vite
-- **Styling:** Tailwind CSS + Framer Motion
+- **Styling:** Tailwind CSS (loaded via CDN in index.html)
 - **Icons:** Lucide React
 - **Networking:** PeerJS (WebRTC)
+- **Animations:** Framer Motion (loaded via CDN in index.html)
 
 ## Core Concepts
 

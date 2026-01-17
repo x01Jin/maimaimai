@@ -286,6 +286,17 @@ export const sessionUtils = (state: GameState, action: ClientAction, peerId: str
             }
         }
 
+        case 'FORCE_FINISH_TURN': {
+            if (!nextState.currentSession || nextState.currentSession.id !== action.payload.sessionId) return state;
+            
+            return {
+                ...nextState,
+                currentSession: null,
+                finishApprovals: [],
+                messages: [...nextState.messages, createSystemMessage('Mod forced current turn to finish.')]
+            };
+        }
+
         case 'LEAVE_QUEUE': {
             const { playerId, queueId } = action.payload;
             const player = nextState.players.find(p => p.id === playerId);
@@ -314,6 +325,38 @@ export const sessionUtils = (state: GameState, action: ClientAction, peerId: str
             });
 
             if (!didLeave) return state;
+
+            return { ...nextState, queue: newQueue, messages };
+        }
+
+        case 'KICK_PLAYER': {
+            const { playerId, queueId } = action.payload;
+            const player = nextState.players.find(p => p.id === playerId);
+            const name = player?.name || 'Unknown';
+            let newQueue: QueueEntry[] = [];
+            const messages = [...nextState.messages];
+            let didKick = false;
+
+            nextState.queue.forEach(q => {
+                if (q.id === queueId && q.playerIds.includes(playerId)) {
+                    didKick = true;
+                    const remainingPlayers = q.playerIds.filter(id => id !== playerId);
+                    if (remainingPlayers.length === 0) {
+                        messages.push(createSystemMessage(`Mod kicked ${name} from the queue.`));
+                    } else {
+                        newQueue.push({
+                            ...q,
+                            type: 'MATCH', // Revert to MATCH if partner is kicked
+                            playerIds: remainingPlayers
+                        });
+                        messages.push(createSystemMessage(`Mod kicked ${name} from the duo.`));
+                    }
+                } else {
+                    newQueue.push(q);
+                }
+            });
+
+            if (!didKick) return state;
 
             return { ...nextState, queue: newQueue, messages };
         }
