@@ -4,19 +4,26 @@
 
 - **Framework:** React 19
 - **Bundler:** Vite
-- **Styling:** Tailwind CSS + Framer Motion
-- **Icons:** Lucide React
-- **Networking:** PeerJS (WebRTC)
+- **Styling:** Tailwind CSS (loaded via CDN in index.html)
+- **Icons:** Lucide React (npm package)
+- **Networking:** PeerJS (npm package)
+- **Animations:** Framer Motion (npm package)
 
 ## Core Concepts
 
-### `usePeerSession` Hook
+### Modular Peer Hooks
 
-The "Brain" of the application. It manages the PeerJS lifecycle, connection mesh, distributed election logic, and QoS monitoring.
+The "Brain" of the application is split into focused, modular hooks in `hooks/peer/`:
+
+- **`usePeerLifecycle.ts`**: Manages the PeerJS instance lifecycle, connection/disconnection events, and cleanup.
+- **`usePeerConnections.ts`**: Manages the connection mesh - establishing and maintaining DataConnections with other peers.
+- **`usePeerMessaging.ts`**: Handles sending and receiving P2P messages (HELLO, PEER_DISCOVERY, SYNC_STATE, ACTION, HEARTBEAT, PONG).
+- **`usePeerCoordination.ts`**: Implements the Mod election algorithm, Beacon management, and authority handoffs.
+- **`usePeerSession.ts`**: The main orchestrator hook that composes all peer hooks and exposes the unified API.
 
 #### State vs. Refs
 
-To prevent stale closures in asynchronous WebRTC event listeners, the hook uses `useRef` for critical network state:
+To prevent stale closures in asynchronous WebRTC event listeners, the hooks use `useRef` for critical network state:
 
 - `connectionsRef`: A Map of active `DataConnection` objects.
 - `gameStateRef`: The latest authoritative state (synced with the React `gameState` state).
@@ -38,6 +45,7 @@ Located in `utils/sessionUtils.ts`, this file contains the business logic for qu
 **Key Responsibilities:**
 
 - **Player Joining:** Handles new UUIDs vs. reconnecting UUIDs (ID swapping via `replacePlayerIdInGameState`).
+- **Merge Logic:** `mergeMessages` provides safe, deduplicated chat history merging across P2P state updates, preventing history gaps during mod transitions.
 - **Queue Logic:** Automatically pairing players in `MATCH` mode, handling `PARTNER` joins, and managing the `currentSession`.
 - **Voting:** Implementing the `REQUEST_SOLO` and `CAST_VOTE` logic, including auto-approval thresholds.
 - **State Hashing:** Generating a unique hash of the state (`hashState`) for optimized broadcasts.
@@ -58,16 +66,16 @@ The `updateServicePeers` function (inside the hook) runs every 5 seconds on the 
 ### Adding a New Feature
 
 1. **Define Type:** Add the new action to `ClientAction` in `types.ts`.
-2. **Implement Logic:** Add the case in `sessionUtils.ts`. Increment the `version`.
-3. **Expose Action:** Add a wrapper function in `usePeerSession.ts` that calls `sendAction`.
-4. **Update UI:** Use the new function in the relevant View.
+2. **Implement Logic:** Add the case in `utils/sessionUtils.ts`. Increment the `version`.
+3. **Expose Action:** Add action handler in the appropriate peer hook (`hooks/peer/usePeerMessaging.ts` for new message types) and call it from `usePeerSession.ts`.
+4. **Update UI:** Use the exposed function in the relevant View.
 
 ### Local Development
 
 1. `npm install`
 2. `npm run dev`
 
-*Important: PeerJS requires a Secure Context. Access via `localhost:5173`. To test between devices on the same network, you may need to use a tool like `localtunnel` or `ngrok` to provide an HTTPS endpoint.*
+*Important: PeerJS requires a Secure Context. Access via `localhost:3000`. To test between devices on the same network, you may need to use a tool like `localtunnel` or `ngrok` to provide an HTTPS endpoint.*
 
 ---
 

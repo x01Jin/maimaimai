@@ -14,7 +14,7 @@ Since there is no central database to list active sessions, MaiMaiMai uses a det
 - **Handshake:** New players connect to this Beacon ID first.
 - **Discovery:** Upon connection, a service peer sends a `PEER_DISCOVERY` message containing the full list of Peer IDs currently in the session.
 - **Transition:** The joining player then establishes direct WebRTC data channels with all other peers and disconnects from the Beacon.
-- **Conflict Handling:** Only the Mod captures the Beacon. If a Mod disconnects, the newly elected Mod takes over the Beacon.
+- **Conflict Handling:** Only the Mod captures the Beacon. If a Mod disconnects, the newly elected Mod takes over the Beacon. If an original host returns, they perform a **Beacon Check** (connecting to the Beacon as a client) to determine if they should resume hosting or join as a regular player, preventing WebSocket conflicts.
 
 ### 2. Service Peers (The Authoritative Core)
 
@@ -45,6 +45,7 @@ State is managed as a single immutable `GameState` object.
 ### Versioning & Conflict Resolution
 
 - **Version Number:** Every state change increments the `version`. Clients only accept `SYNC_STATE` messages if the incoming `version` is strictly higher than their local version.
+- **Smart Chat Merging:** To prevent chat history loss during state transitions or mod transfers, chat messages are merged and deduplicated across state updates. Instead of overwriting history, the local message list is combined with the incoming list, sorted by timestamp, and capped at `MAX_CHAT_HISTORY`.
 - **Delta Patching:** `SYNC_STATE` messages include the `lastAction` that caused the update. If a peer is exactly one version behind, it applies the action locally instead of replacing the entire state, ensuring smooth, "zero-flicker" updates.
 - **Hashing:** A deterministic hash of the state (`stateHash`) is calculated based on critical fields (queue, players, messages, etc.). `SYNC_STATE` is only broadcast if the content hash changes.
 - **Data Capping:** Chat history is limited to 50 messages (`MAX_CHAT_HISTORY`) to keep the synchronization payload small and mobile-friendly.
@@ -59,8 +60,10 @@ State is managed as a single immutable `GameState` object.
 
 The current Mod automatically saves the `GameState` to `localStorage` on every update.
 
-- **Session Recovery:** If the Mod's browser crashes, they can "Recover Session" using the same code. The state is restored from local storage and re-broadcast to the mesh.
-- **Migrated Mod Recovery:** If a player is elected as Mod, they begin saving the state locally to provide future recovery.
+- **Smart Session Recovery:** If the Mod's browser refreshes, they can use the "Resume Session" feature. The system creates a temporary peer to probe the Beacon:
+  - If the Beacon is **Unresponsive**: The original Mod resumes the role, restoring state from `localStorage` and re-broadcasting.
+  - If the Beacon is **Active**: It means another player was elected Mod while the host was gone. The original Mod automatically joins as a regular player instead of fighting for the Beacon ID.
+- **Migrated Mod Recovery:** If a player is elected as Mod, they begin saving the state locally to provide future recovery if the session is left to them.
 
 ---
 
@@ -83,6 +86,6 @@ The current Mod automatically saves the `GameState` to `localStorage` on every u
 
 If the current Mod disconnects unexpectedly, the mesh performs an automatic election to maintain the Beacon and authority:
 
-1. **Detection:** All peers monitor the Mod's heartbeat. If no pulse is detected for `HOST_TIMEOUT_MS` (6s), an election is triggered.
+1. **Detection:** All peers monitor the Mod's heartbeat. If no pulse is detected for `HOST_TIMEOUT_MS` (10s), an election is triggered.
 2. **Seniority:** The candidate pool is filtered for online players. The player with the **earliest `joinedAt` timestamp** (the "oldest" player) is automatically elected.
 3. **Promotion:** The winner promotes themselves to Mod, attempts to capture the session's Beacon ID, and broadcasts a `SYNC_STATE` with an authority bump (`version + 10`).
