@@ -146,7 +146,8 @@ export const usePeerLifecycle = ({
     });
   };
 
-  const joinSession = async (code: string, username: string) => {
+  const joinSession = async (codeInput: string, username: string) => {
+    const code = codeInput.toUpperCase();
     setStatus(ConnectionStatus.CONNECTING);
     const idInfo = saveIdentity(username, myUuid);
     setMyUuid(idInfo.uuid);
@@ -173,6 +174,7 @@ export const usePeerLifecycle = ({
             if(gameStateRef.current.sessionName === code && id !== ''){
                 clearInterval(interval);
                 clearTimeout(timeout);
+                addRecentSession(code);
                 resolve();
             }
         }, 100)
@@ -180,6 +182,20 @@ export const usePeerLifecycle = ({
 
       peer.on('connection', (conn: DataConnection) => setupConnectionListeners(conn, false));
       peer.on('error', (err: PeerError) => {
+        // Filter out non-fatal peer-unavailable errors (e.g. offline peers in discovery list)
+        if (err.type === 'peer-unavailable') {
+            const beaconId = getBeaconId(code);
+            // Only fail if we can't connect to the beacon
+            if (err.message && err.message.includes(beaconId)) {
+                logger.error(`Beacon unavailable: ${beaconId}`);
+                setStatus(ConnectionStatus.ERROR);
+                reject(err);
+            } else {
+                logger.warn(`Ignored non-critical peer error during join: ${err.message}`);
+            }
+            return;
+        }
+
         logger.error(`Peer Error: ${err.type}`);
         if (err.type === 'network-disconnected') {
             setStatus(ConnectionStatus.RECONNECTING);

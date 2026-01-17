@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Users, Clock, Trash2, CloudLightning } from 'lucide-react';
-import { getIdentity, getRecentSessions, removeRecentSession, loadHostState, RecentSession } from '../utils/storage';
+import { getIdentity, getRecentSessions, removeRecentSession, RecentSession } from '../utils/storage';
 
 interface LandingViewProps {
     onCreateSession: (name: string, recoverCode?: string) => void;
@@ -33,17 +33,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
         setHistory(getRecentSessions());
     };
 
-    // Check if we have a recoverable host state
-    const getRecoverableSession = () => {
-        const lastSession = history[0];
-        if (lastSession) {
-            const state = loadHostState(lastSession.code);
-            if (state) return lastSession.code;
-        }
-        return null;
-    };
-
-    const recoverableCode = getRecoverableSession();
+    const lastSession = history[0];
 
     if (mode === 'join') {
         return (
@@ -124,16 +114,16 @@ export const LandingView: React.FC<LandingViewProps> = ({
                     />
                 </div>
 
-                {recoverableCode && (
+                {lastSession && (
                     <Button
                         fullWidth
                         className="bg-orange-500 text-white hover:bg-orange-400 shadow-lg shadow-orange-500/20 mb-2"
-                        onClick={() => onCreateSession(name, recoverableCode)}
+                        onClick={() => onJoin(lastSession.code, name)}
                         disabled={!name.trim() || isConnecting}
                     >
                         <div className="flex items-center justify-center gap-2">
                             <CloudLightning size={20} />
-                            Resume Session {recoverableCode}
+                            Rejoin Session {lastSession.code}
                         </div>
                     </Button>
                 )}
