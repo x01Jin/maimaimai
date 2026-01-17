@@ -337,9 +337,17 @@ export const sessionUtils = (state: GameState, action: ClientAction, peerId: str
         case 'TRANSFER_MOD': {
             const { targetId } = action.payload;
             const targetName = nextState.players.find(p => p.id === targetId)?.name || 'Unknown';
+            
+            // Ensure the new mod is a service peer and remove the old mod if we want to rotate
+            // For now, let's just make the new mod the primary service peer
+            const otherServicePeers = nextState.servicePeers.filter(id => id !== peerId && id !== targetId);
+            const newServicePeers = [targetId, ...otherServicePeers].slice(0, 3);
+
             return {
                 ...nextState,
+                version: state.version + 10, // Bump authority significantly
                 players: nextState.players.map(p => ({ ...p, isMod: p.id === targetId })),
+                servicePeers: newServicePeers,
                 messages: [...nextState.messages, createSystemMessage(`Mod role transferred to ${targetName}.`)]
             };
         }
