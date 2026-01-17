@@ -1,20 +1,31 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import Peer from 'peerjs';
-import { GameState, Player, ClientAction, ConnectionStatus, P2PMessage, DataConnection, PeerInstance, PeerError } from '../types';
-import { ID_PREFIX, NETWORK_CONFIG, STORAGE_CONFIG, GAME_CONFIG } from '../constants';
-import { getIdentity, saveIdentity, addRecentSession, saveHostState, loadHostState, generateUUID } from '../utils/storage';
-import { INITIAL_STATE, sessionUtils, processQueueState, replacePlayerIdInGameState, createSystemMessage, hashState, finalizeState } from '../utils/sessionUtils';
+import { 
+  GameState, 
+  ConnectionStatus, 
+  ClientAction, 
+  DataConnection, 
+  PeerError 
+} from '../types';
+import { 
+  getIdentity, 
+  saveHostState, 
+  generateUUID 
+} from '../utils/storage';
+import { 
+  INITIAL_STATE, 
+  sessionUtils, 
+  processQueueState, 
+  createSystemMessage, 
+  hashState, 
+  finalizeState 
+} from '../utils/sessionUtils';
 
-const PeerConstructor = (Peer as any).default ?? Peer;
-
-const generateShortCode = () => Math.random().toString(36).substring(2, 6).toUpperCase();
-
-// Logger utility
-const logger = {
-  log: (message: string) => console.log(`[p2p] ${message}`),
-  warn: (message: string) => console.warn(`[p2p] ${message}`),
-  error: (message: string) => console.error(`[p2p] ${message}`),
-};
+// Sub-hooks
+import { logger } from './peer/peerUtils';
+import { usePeerConnections } from './peer/usePeerConnections';
+import { usePeerLifecycle } from './peer/usePeerLifecycle';
+import { usePeerMessaging } from './peer/usePeerMessaging';
+import { usePeerCoordination } from './peer/usePeerCoordination';
 
 interface UsePeerSessionReturn {
   status: ConnectionStatus;
@@ -48,95 +59,48 @@ export const usePeerSession = (): UsePeerSessionReturn => {
   const [myUuid, setMyUuid] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
-  // Refs for network state
-  const peerRef = useRef<PeerInstance | null>(null);
-  const beaconRef = useRef<PeerInstance | null>(null);
-  const connectionsRef = useRef<Map<string, DataConnection>>(new Map());
-  const sessionCodeRef = useRef<string>('');
-  const actionBufferRef = useRef<ClientAction[]>([]);
-  const capturingBeaconRef = useRef<string | null>(null);
-  const heartbeatSequenceRef = useRef<number>(0);
-
   const gameStateRef = useRef<GameState>(INITIAL_STATE);
   const modPeerIdRef = useRef<string | null>(null);
-  const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const servicePeerUpdateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastModPulseRef = useRef<number>(Date.now());
-  
-  // Ref for quality metrics
-  const qualityMetricsRef = useRef<Map<string, { latencies: number[], jitter: number, packetLoss: number, pendingSequences: Map<number, number> }>>(new Map());
 
-  // Refs for late-binding functions
-  const tryCaptureBeaconRef = useRef<(code: string, attempt?: number) => void>(() => { });
-  const electNewModRef = useRef<() => void>(() => { });
-  const connectToPeerRef = useRef<(targetId: string, isBeacon: boolean) => void>(() => { });
-  const updateServicePeersRef = useRef<() => void>(() => { });
+  // Late-binding refs for circular dependencies
+  const handleMessageRef = useRef<(msg: any, peerId: string) => void>(() => {});
+  const connectToPeerRef = useRef<(targetId: string, isBeacon: boolean) => void>(() => {});
+  const tryCaptureBeaconRef = useRef<(code: string) => void>(() => {});
+  const electNewModRef = useRef<() => void>(() => {});
 
-  // Sync ref
+  // Sync refs
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
 
-  // Load identity
   useEffect(() => {
     const id = getIdentity();
     setMyUuid(id.uuid);
   }, []);
 
-  // Mod Persistence
+  // Persistence
   useEffect(() => {
-    if (gameState.players.find(p => p.id === myId)?.isMod && gameState.sessionName) {
+    const isMeMod = gameState.players.find(p => p.id === myId)?.isMod;
+    if (isMeMod && gameState.sessionName) {
       saveHostState(gameState.sessionName, gameState);
     }
   }, [gameState, myId]);
 
-  // --- Networking Primitives ---
+  // 1. Connection Management
+  const {
+    connectionsRef,
+    qualityMetricsRef,
+    actionBufferRef,
+    broadcast,
+    sendTo,
+    sendToServicePeers,
+    registerConnection
+  } = usePeerConnections(myId, gameStateRef);
 
-  const broadcast = useCallback((msg: P2PMessage, excludeId?: string) => {
-    connectionsRef.current.forEach((conn, peerId) => {
-      if (peerId !== excludeId && conn.open) {
-        conn.send(msg);
-      }
-    });
-  }, []);
-
-  const sendTo = useCallback((peerId: string, msg: P2PMessage) => {
-    const conn = connectionsRef.current.get(peerId);
-    if (conn && conn.open) {
-      conn.send(msg);
-    }
-  }, []);
-  
-  const sendToServicePeers = useCallback((msg: P2PMessage, includeSelf = false) => {
-    gameStateRef.current.servicePeers.forEach(peerId => {
-      if (peerId === myId && !includeSelf) return;
-      sendTo(peerId, msg);
-    });
-  }, [myId, sendTo]);
-
-  // Helper to register connection
-  const registerConnection = useCallback((conn: DataConnection) => {
-    if (!conn) return;
-    connectionsRef.current.set(conn.peer, conn);
-    
-    // Flush action buffer if we just connected to a service peer
-    const iAmServicePeer = gameStateRef.current.servicePeers.includes(myId);
-    if (!iAmServicePeer && actionBufferRef.current.length > 0) {
-        const isServicePeer = gameStateRef.current.servicePeers.includes(conn.peer);
-        if (isServicePeer) {
-            logger.log(`Flushing ${actionBufferRef.current.length} buffered actions to ${conn.peer}`);
-            actionBufferRef.current.forEach(action => {
-                conn.send({ type: 'ACTION', payload: { action, from: myId } });
-            });
-            actionBufferRef.current = [];
-        }
-    }
-  }, [myId]);
-
-  // Ref for debouncing broadcasts
+  // 2. State Updates
   const broadcastDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Update state locally and broadcast (if Service Peer)
   const updateState = useCallback((updater: (prev: GameState) => GameState, lastAction?: ClientAction) => {
     setGameState((prev) => {
       const next = updater(prev);
@@ -156,7 +120,6 @@ export const usePeerSession = (): UsePeerSessionReturn => {
       if (prev.stateHash !== newHash) {
         const iAmServicePeer = final.servicePeers.includes(myId);
         if (iAmServicePeer) {
-          // Debounce broadcasts to prevent storms
           if (broadcastDebounceRef.current) clearTimeout(broadcastDebounceRef.current);
           broadcastDebounceRef.current = setTimeout(() => {
               broadcast({ type: 'SYNC_STATE', payload: { state: final, stateHash: newHash, lastAction } });
@@ -167,166 +130,17 @@ export const usePeerSession = (): UsePeerSessionReturn => {
     });
   }, [broadcast, myId]);
 
-  // --- Distributed Logic ---
+  const handleDisconnect = useCallback((lostPeerId: string) => {
+    updateState(prev => ({
+      ...prev,
+      players: prev.players.map(p => p.id === lostPeerId ? { ...p, isConnected: false } : p)
+    }));
 
-  const handleMessage = useCallback(async (msg: P2PMessage, peerId: string) => {
-    if (peerId === modPeerIdRef.current) {
-      lastModPulseRef.current = Date.now();
+    if (lostPeerId === modPeerIdRef.current) {
+      logger.warn("Mod disconnected. Triggering election...");
+      electNewModRef.current();
     }
-
-    switch (msg.type) {
-      case 'HELLO': {
-        const newPlayer = msg.payload.player;
-        const iAmServicePeer = gameStateRef.current.servicePeers.includes(myId);
-        if (iAmServicePeer) {
-          updateState(prev => sessionUtils(prev, {
-            type: 'JOIN_SESSION',
-            payload: { name: newPlayer.name, uuid: newPlayer.uuid }
-          }, peerId));
-
-          sendTo(peerId, {
-            type: 'PEER_DISCOVERY',
-            payload: { peers: gameStateRef.current.players }
-          });
-        }
-        break;
-      }
-
-      case 'PEER_DISCOVERY': {
-        const peers = msg.payload.peers;
-        peers.forEach(p => {
-          if (p.id !== myId && !connectionsRef.current.has(p.id)) {
-            connectToPeerRef.current(p.id, false);
-          }
-        });
-        break;
-      }
-
-      case 'SYNC_STATE': {
-        const { state: receivedState, stateHash, lastAction } = msg.payload;
-        if (stateHash !== gameStateRef.current.stateHash && receivedState.version > gameStateRef.current.version) {
-          
-          const iAmServicePeer = gameStateRef.current.servicePeers.includes(myId);
-
-          // Optimization: If we are only 1 version behind and have the action, apply it locally
-          // ONLY for non-service peers to avoid broadcast loops/storms
-          if (!iAmServicePeer && lastAction && receivedState.version === gameStateRef.current.version + 1) {
-            updateState(prev => sessionUtils(prev, lastAction, peerId));
-            return;
-          }
-
-          // Merge local connection knowledge to prevent flickers to offline
-          const mergedPlayers = receivedState.players.map(p => {
-            const localPlayer = gameStateRef.current.players.find(lp => lp.id === p.id);
-            if (localPlayer?.isConnected && !p.isConnected && (Date.now() - (localPlayer.lastSeen || 0) < 10000)) {
-                return { ...p, isConnected: true, lastSeen: localPlayer.lastSeen };
-            }
-            return p;
-          });
-
-          const migratedState = finalizeState({ ...INITIAL_STATE, ...receivedState, players: mergedPlayers });
-          setGameState(migratedState);
-
-          const newMod = receivedState.players.find(p => p.isMod);
-          if (newMod) {
-            modPeerIdRef.current = newMod.id;
-            lastModPulseRef.current = Date.now();
-          }
-        }
-        break;
-      }
-
-      case 'ACTION': {
-        const { action } = msg.payload;
-        const iAmServicePeer = gameStateRef.current.servicePeers.includes(myId);
-        if (iAmServicePeer) {
-          updateState(prev => sessionUtils(prev, action, peerId));
-        }
-        break;
-      }
-
-      case 'TRANSFER_MOD': {
-        const { newModId, state: latestState } = msg.payload;
-        
-        const isMe = newModId === myId;
-        const processUpdate = (prev: GameState) => {
-          // Use provided state if newer or from authoritative source
-          const base = (latestState && latestState.version >= prev.version) ? latestState : prev;
-          const newModName = base.players.find(p => p.id === newModId)?.name || 'Unknown';
-          const otherServicePeers = base.servicePeers.filter(id => id !== newModId);
-          return {
-            ...base,
-            players: base.players.map(p => ({ ...p, isMod: p.id === newModId })),
-            servicePeers: [newModId, ...otherServicePeers].slice(0, 3),
-            messages: [...base.messages, createSystemMessage(`Mod role transferred to ${newModName}`)],
-            version: base.version + 100 // High authority bump
-          };
-        };
-
-        if (isMe) {
-          updateState(processUpdate);
-        } else {
-          setGameState(processUpdate);
-        }
-
-        modPeerIdRef.current = newModId;
-        lastModPulseRef.current = Date.now(); // Reset election timer
-
-        if (isMe) {
-          tryCaptureBeaconRef.current(sessionCodeRef.current);
-          // Reinforce mesh: Tell everyone who is in the session
-          broadcast({ type: 'PEER_DISCOVERY', payload: { peers: gameStateRef.current.players } });
-        } else {
-          connectToPeerRef.current(newModId, false);
-        }
-        break;
-      }
-      
-      case 'HEARTBEAT': {
-        const { timestamp, sequence } = msg.payload;
-        sendTo(peerId, { type: 'PONG', payload: { originalTimestamp: timestamp, sequence } });
-        
-        const player = gameStateRef.current.players.find(p => p.id === peerId);
-        const iAmServicePeer = gameStateRef.current.servicePeers.includes(myId);
-
-        if (iAmServicePeer && player && !player.isConnected) {
-          updateState(prev => ({
-            ...prev,
-            players: prev.players.map(p => p.id === peerId ? { ...p, lastSeen: Date.now(), isConnected: true } : p)
-          }));
-        } else {
-          setGameState(prev => ({
-            ...prev,
-            players: prev.players.map(p => p.id === peerId ? { ...p, lastSeen: Date.now(), isConnected: true } : p)
-          }));
-        }
-        break;
-      }
-
-      case 'PONG': {
-        const { originalTimestamp, sequence } = msg.payload;
-        const latency = Date.now() - originalTimestamp;
-        
-        const metrics = qualityMetricsRef.current.get(peerId) || { latencies: [], jitter: 0, packetLoss: 0, pendingSequences: new Map() };
-        
-        // Mark sequence as received
-        metrics.pendingSequences.delete(sequence);
-        
-        metrics.latencies.push(latency);
-        if (metrics.latencies.length > 10) metrics.latencies.shift();
-        
-        const avgLatency = metrics.latencies.reduce((a, b) => a + b, 0) / metrics.latencies.length;
-        const jitter = metrics.latencies.reduce((sum, val) => sum + Math.abs(val - avgLatency), 0) / metrics.latencies.length;
-        metrics.jitter = jitter;
-
-        qualityMetricsRef.current.set(peerId, metrics);
-        break;
-      }
-    }
-  }, [myId, updateState, sendTo]);
-
-  const handleMessageRef = useRef(handleMessage);
-  useEffect(() => { handleMessageRef.current = handleMessage; }, [handleMessage]);
+  }, [updateState]);
 
   const setupConnectionListeners = useCallback((conn: DataConnection, isBeacon = false) => {
     conn.on('open', () => registerConnection(conn));
@@ -340,13 +154,14 @@ export const usePeerSession = (): UsePeerSessionReturn => {
       }
     });
     conn.on('error', (err: PeerError) => logger.warn(`Connection error with ${conn.peer}: ${err.type}`));
-  }, [registerConnection]);
+  }, [registerConnection, handleDisconnect, connectionsRef]);
 
-  const connectToPeer = (targetId: string, isBeaconConnect: boolean) => {
-    if (!peerRef.current || targetId === myId || connectionsRef.current.has(targetId)) return;
+  const connectToPeer = useCallback((targetId: string, isBeaconConnect: boolean) => {
+    const peer = (lifecycle as any).peerRef.current; // Hacky but needed if not using refs
+    if (!peer || targetId === myId || connectionsRef.current.has(targetId)) return;
     
     logger.log(`Connecting to peer: ${targetId}`);
-    const conn = peerRef.current.connect(targetId, { reliable: true });
+    const conn = peer.connect(targetId, { reliable: true });
     setupConnectionListeners(conn, isBeaconConnect);
 
     conn.on('open', () => {
@@ -364,40 +179,46 @@ export const usePeerSession = (): UsePeerSessionReturn => {
         }
       });
     });
-  };
-  useEffect(() => { connectToPeerRef.current = connectToPeer; });
+  }, [myId, myUuid, setupConnectionListeners, connectionsRef]);
+  
+  // 3. Lifecycle
+  const lifecycle = usePeerLifecycle({
+    myUuid,
+    setMyUuid,
+    myId,
+    setMyId,
+    status,
+    setStatus,
+    gameStateRef,
+    setGameState,
+    modPeerIdRef,
+    lastModPulseRef,
+    setupConnectionListeners,
+    connectToPeer: (tid, isB) => connectToPeerRef.current(tid, isB),
+  });
+  
+  tryCaptureBeaconRef.current = lifecycle.tryCaptureBeacon;
 
-  const handleDisconnect = (lostPeerId: string) => {
-    updateState(prev => ({
-      ...prev,
-      players: prev.players.map(p => p.id === lostPeerId ? { ...p, isConnected: false } : p)
-    }));
+  // 4. Messaging
+  const { handleMessage } = usePeerMessaging({
+    myId,
+    myUuid,
+    gameStateRef,
+    setGameState,
+    updateState,
+    sendTo,
+    broadcast,
+    modPeerIdRef,
+    lastModPulseRef,
+    qualityMetricsRef,
+    connectToPeer: (tid, isB) => connectToPeerRef.current(tid, isB),
+    tryCaptureBeacon: (code) => tryCaptureBeaconRef.current(code),
+    sessionCode: lifecycle.sessionCodeRef.current,
+  });
+  handleMessageRef.current = handleMessage;
 
-    if (lostPeerId === modPeerIdRef.current) {
-      logger.warn("Mod disconnected. Triggering election...");
-      electNewModRef.current();
-    }
-  };
-
-  // --- MOD ELECTION & REDUNDANCY ---
-
-  const electNewMod = () => {
-    const candidates = gameStateRef.current.players
-      .filter(p => p.id !== modPeerIdRef.current && (p.id === myId || connectionsRef.current.has(p.id)))
-      .sort((a, b) => a.joinedAt - b.joinedAt);
-
-    if (candidates.length === 0) return;
-
-    const winner = candidates[0];
-    logger.log(`Election winner: ${winner.name}`);
-
-    if (winner.id === myId) {
-      becomeMod();
-    }
-  };
-  useEffect(() => { electNewModRef.current = electNewMod; });
-
-  const becomeMod = async () => {
+  // 5. Coordination
+  const becomeMod = useCallback(async () => {
     if (gameStateRef.current.players.find(p => p.id === myId)?.isMod) return;
 
     logger.log("Promoting self to Mod");
@@ -410,177 +231,65 @@ export const usePeerSession = (): UsePeerSessionReturn => {
         messages: [...prev.messages, createSystemMessage(`Mod migrated to ${myName}.`)],
         version: prev.version + 10
       };
-      newState.servicePeers = [myId]; // I am now the service peer
+      newState.servicePeers = [myId];
       return newState;
     });
 
     modPeerIdRef.current = myId;
     lastModPulseRef.current = Date.now();
     broadcast({ type: 'TRANSFER_MOD', payload: { newModId: myId } });
-    tryCaptureBeaconRef.current(sessionCodeRef.current);
-  };
+    tryCaptureBeaconRef.current(lifecycle.sessionCodeRef.current);
+  }, [myId, updateState, broadcast, lifecycle.sessionCodeRef, gameStateRef]);
 
-  const tryCaptureBeacon = (code: string, attempt = 0) => {
-    const beaconId = `${ID_PREFIX}${code}`;
-    
-    // Don't start if already capturing or already have a beacon
-    if (beaconRef.current || (capturingBeaconRef.current === beaconId && attempt === 0)) return;
-    
-    if (attempt === 0) {
-        logger.log(`Attempting to capture beacon: ${beaconId}`);
-        capturingBeaconRef.current = beaconId;
-    }
+  const { electNewMod } = usePeerCoordination({
+    myId,
+    status,
+    gameStateRef,
+    connectionsRef,
+    qualityMetricsRef,
+    broadcast,
+    updateState,
+    becomeMod,
+    modPeerIdRef,
+    lastModPulseRef,
+  });
+  electNewModRef.current = electNewMod;
 
-    const beacon = new PeerConstructor(beaconId, { config: NETWORK_CONFIG.PEERJS_CONFIG });
-
-    beacon.on('open', () => {
-      logger.log(`Beacon captured: ${beaconId}`);
-      beaconRef.current = beacon;
-      capturingBeaconRef.current = null;
-      beacon.on('connection', (conn: DataConnection) => setupConnectionListeners(conn, true));
-    });
-
-    beacon.on('error', (err: PeerError) => {
-      // Always cleanup on error
-      beacon.destroy();
-      
-      if (err.type === 'unavailable-id' || err.type === 'network') {
-        if (attempt < NETWORK_CONFIG.BEACON_RETRY_ATTEMPTS) {
-          const delay = attempt < 3 ? 500 : NETWORK_CONFIG.BEACON_RETRY_DELAY_MS;
-          logger.warn(`Beacon ID ${beaconId} ${err.type} error. Retrying in ${delay}ms... (Attempt ${attempt + 1})`);
-          setTimeout(() => tryCaptureBeacon(code, attempt + 1), delay);
-        } else {
-          logger.error(`Failed to capture beacon ${beaconId} after ${attempt} attempts: ${err.type}`);
-          capturingBeaconRef.current = null;
-        }
-      } else {
-        logger.error(`Fatal beacon error: ${err.type}`);
-        capturingBeaconRef.current = null;
-      }
-    });
-  };
-  useEffect(() => { tryCaptureBeaconRef.current = tryCaptureBeacon; });
-  
-  const calculateQualityScore = (metrics: { latencies: number[], jitter: number, packetLoss: number }): number => {
-    const avgLatency = metrics.latencies.reduce((a, b) => a + b, 0) / metrics.latencies.length;
-    const latencyScore = Math.max(0, 100 - (avgLatency / 5)); // Lower latency is better
-    const jitterScore = Math.max(0, 100 - (metrics.jitter * 2)); // Lower jitter is better
-    const packetLossScore = 100 - (metrics.packetLoss * 100); // Lower packet loss is better
-    
-    return (latencyScore * 0.6) + (jitterScore * 0.2) + (packetLossScore * 0.2);
-  };
-  
-  const updateServicePeers = () => {
-    const onlinePlayers = gameStateRef.current.players.filter(p => p.isConnected);
-    const scoredPlayers = onlinePlayers.map(p => {
-        const metrics = qualityMetricsRef.current.get(p.id);
-        const score = metrics ? calculateQualityScore(metrics) : 0;
-        return { ...p, score };
-    }).sort((a, b) => b.score - a.score);
-
-    const mod = scoredPlayers.find(p => p.isMod);
-    const bestPeers = scoredPlayers.filter(p => !p.isMod).slice(0, 2);
-    
-    const newServicePeers = mod ? [mod.id, ...bestPeers.map(p => p.id)] : bestPeers.slice(0,1).map(p => p.id);
-    
-    updateState(prev => ({ ...prev, servicePeers: newServicePeers, players: prev.players.map(p => {
-        const scored = scoredPlayers.find(s => s.id === p.id);
-        return scored ? { ...p, quality: { latency: qualityMetricsRef.current.get(p.id)?.latencies.reduce((a, b) => a + b, 0) / (qualityMetricsRef.current.get(p.id)?.latencies.length || 1) || 0, jitter: qualityMetricsRef.current.get(p.id)?.jitter || 0, packetLoss: qualityMetricsRef.current.get(p.id)?.packetLoss || 0, score: scored.score } } : p;
-    }) }));
-  };
-  useEffect(() => { updateServicePeersRef.current = updateServicePeers; });
-  
-  // --- TIMERS ---
-
+  // Implementation of connectToPeer that uses the current peerRef
   useEffect(() => {
-    let currentHeartbeatInterval: number = NETWORK_CONFIG.HEARTBEAT_INTERVAL_MS;
+    connectToPeerRef.current = (targetId: string, isBeaconConnect: boolean) => {
+        const peer = lifecycle.peerRef.current;
+        if (!peer || targetId === myId || connectionsRef.current.has(targetId)) return;
+        
+        logger.log(`Connecting to peer: ${targetId}`);
+        const conn = peer.connect(targetId, { reliable: true });
+        setupConnectionListeners(conn, isBeaconConnect);
     
-    const tickHeartbeat = () => {
-        if (status === ConnectionStatus.CONNECTED) {
-            const sequence = ++heartbeatSequenceRef.current;
-            const now = Date.now();
-            broadcast({ type: 'HEARTBEAT', payload: { id: myId, timestamp: now, sequence } });
-            
-            // Track sent sequence for all open connections
-            connectionsRef.current.forEach((_, peerId) => {
-              const metrics = qualityMetricsRef.current.get(peerId) || { latencies: [], jitter: 0, packetLoss: 0, pendingSequences: new Map() };
-              metrics.pendingSequences.set(sequence, now);
-              
-              // Calculate packet loss based on older pending sequences (older than 5s)
-              let lostCount = 0;
-              const timeout = 5000;
-              metrics.pendingSequences.forEach((time, seq) => {
-                if (now - time > timeout) {
-                  lostCount++;
-                  metrics.pendingSequences.delete(seq);
-                }
-              });
-              
-              if (lostCount > 0) {
-                // Weight the loss over a window of ~20 heartbeats
-                metrics.packetLoss = Math.min(1, (metrics.packetLoss * 0.8) + ( (lostCount / 5) * 0.2 ));
-              } else {
-                // Decay packet loss if everything is healthy
-                metrics.packetLoss = metrics.packetLoss * 0.95;
+        conn.on('open', () => {
+          conn.send({
+            type: 'HELLO',
+            payload: {
+              player: {
+                id: myId,
+                uuid: myUuid,
+                name: getIdentity().name,
+                isMod: false,
+                isConnected: true,
+                joinedAt: Date.now(),
               }
-
-              qualityMetricsRef.current.set(peerId, metrics);
-            });
-
-            // Adjust interval based on quality of connections
-            const metricsList = Array.from(qualityMetricsRef.current.values());
-            const avgJitter = metricsList.length > 0 
-                ? (metricsList as any[]).reduce((acc: number, m: any) => acc + (m.jitter || 0), 0) / metricsList.length 
-                : 0;
-            
-            if (avgJitter < 5) {
-                currentHeartbeatInterval = Math.min(currentHeartbeatInterval + 500, NETWORK_CONFIG.ADAPTIVE_HEARTBEAT_MAX_MS);
-            } else {
-                currentHeartbeatInterval = NETWORK_CONFIG.HEARTBEAT_INTERVAL_MS;
             }
-        }
-        heartbeatTimerRef.current = setTimeout(tickHeartbeat, currentHeartbeatInterval) as any;
-    };
+          });
+        });
+      };
+  }, [lifecycle.peerRef, myId, myUuid, setupConnectionListeners, connectionsRef]);
 
-    heartbeatTimerRef.current = setTimeout(tickHeartbeat, currentHeartbeatInterval) as any;
-
-    const monitorTimer = setInterval(() => {
-      if (status !== ConnectionStatus.CONNECTED && status !== ConnectionStatus.MIGRATING) return;
-      const iAmMod = gameStateRef.current.players.find(p => p.id === myId)?.isMod;
-      if (iAmMod) return;
-
-      const timeout = status === ConnectionStatus.MIGRATING ? 10000 : NETWORK_CONFIG.HOST_TIMEOUT_MS;
-
-      if (Date.now() - lastModPulseRef.current > timeout) {
-        logger.warn(`Mod timed out. Forcing Election.`);
-        lastModPulseRef.current = Date.now();
-        electNewModRef.current();
-      }
-    }, 1000);
-    
-    servicePeerUpdateTimerRef.current = setInterval(() => {
-        if(status === ConnectionStatus.CONNECTED && gameStateRef.current.players.find(p => p.id === myId)?.isMod){
-            updateServicePeersRef.current();
-        }
-    }, 5000);
-
-    return () => {
-      if (heartbeatTimerRef.current) clearTimeout(heartbeatTimerRef.current);
-      clearInterval(monitorTimer);
-      clearInterval(servicePeerUpdateTimerRef.current);
-    };
-  }, [status, myId, broadcast]);
-
-
-  // --- ACTIONS ---
-
-  const sendAction = (action: ClientAction) => {
+  // Actions
+  const sendAction = useCallback((action: ClientAction) => {
     const iAmServicePeer = gameStateRef.current.servicePeers.includes(myId);
 
     if (iAmServicePeer) {
       updateState(prev => sessionUtils(prev, action, myId), action);
     } else {
-      // Find an open connection to a service peer
       const availableServicePeers = gameStateRef.current.servicePeers
         .map(id => ({ id, conn: connectionsRef.current.get(id) }))
         .filter(p => p.conn && p.conn.open);
@@ -592,186 +301,34 @@ export const usePeerSession = (): UsePeerSessionReturn => {
         logger.warn("No service peers available. Buffering action.");
         actionBufferRef.current.push(action);
         
-        // Try to reconnect to service peers if we have none
         gameStateRef.current.servicePeers.forEach(peerId => {
             if (peerId !== myId) connectToPeerRef.current(peerId, false);
         });
       }
     }
-  };
-
-  // --- PUBLIC METHODS ---
-
-  const createSession = async (username: string, existingState?: GameState, recoverCode?: string): Promise<string> => {
-    setStatus(ConnectionStatus.CONNECTING);
-    const idInfo = saveIdentity(username, myUuid);
-    setMyUuid(idInfo.uuid);
-
-    const code = recoverCode || generateShortCode();
-    sessionCodeRef.current = code;
-
-    const peer = new PeerConstructor(undefined, { config: NETWORK_CONFIG.PEERJS_CONFIG });
-
-    return new Promise((resolve, reject) => {
-      peer.on('open', (id: string) => {
-        setMyId(id);
-        peerRef.current = peer;
-
-        let initialState = existingState || INITIAL_STATE;
-        if (!existingState) {
-          initialState = {
-            ...INITIAL_STATE,
-            sessionName: code,
-            players: [{
-              id,
-              uuid: idInfo.uuid,
-              name: username,
-              isMod: true,
-              isConnected: true,
-              joinedAt: Date.now(),
-              lastSeen: Date.now()
-            }],
-            servicePeers: [id],
-          };
-        } else if (recoverCode) {
-          const saved = loadHostState(recoverCode);
-          if (saved) initialState = replacePlayerIdInGameState(saved, saved.players.find(p => p.isMod)?.id || '', id);
-        }
-        
-        initialState.stateHash = hashState(initialState);
-        setGameState(initialState);
-        modPeerIdRef.current = id;
-        lastModPulseRef.current = Date.now();
-        setStatus(ConnectionStatus.CONNECTED);
-        addRecentSession(code);
-        tryCaptureBeacon(code);
-        resolve(code);
-      });
-
-      peer.on('connection', (conn: DataConnection) => setupConnectionListeners(conn, false));
-      peer.on('error', (err: PeerError) => {
-        logger.error(err.type);
-        if (err.type === 'network-disconnected') {
-            setStatus(ConnectionStatus.RECONNECTING);
-            setTimeout(() => peer.reconnect(), 2000);
-        } else {
-            setError(err.type);
-            reject(err);
-        }
-      });
-    });
-  };
-
-  const joinSession = async (code: string, username: string) => {
-    setStatus(ConnectionStatus.CONNECTING);
-    const idInfo = saveIdentity(username, myUuid);
-    setMyUuid(idInfo.uuid);
-    sessionCodeRef.current = code;
-
-    const peer = new PeerConstructor(undefined, { config: NETWORK_CONFIG.PEERJS_CONFIG });
-
-    return new Promise<void>((resolve, reject) => {
-      peer.on('open', (id: string) => {
-        setMyId(id);
-        peerRef.current = peer;
-
-        const beaconId = `${ID_PREFIX}${code}`;
-        connectToPeerRef.current(beaconId, true);
-        
-        const timeout = setTimeout(() => {
-            if(status === ConnectionStatus.CONNECTING){
-                setError("Could not find session. The code may be incorrect or the session is offline.");
-                setStatus(ConnectionStatus.ERROR);
-                reject(new Error("Connection timed out"));
-            }
-        }, 10000)
-        
-        const interval = setInterval(() => {
-            if(status === ConnectionStatus.CONNECTED){
-                clearInterval(interval);
-                clearTimeout(timeout);
-                resolve();
-            }
-        }, 100)
-      });
-
-      peer.on('connection', (conn: DataConnection) => setupConnectionListeners(conn, false));
-      peer.on('error', (err: PeerError) => {
-        logger.error(`Peer Error: ${err.type}`);
-        if (err.type === 'network-disconnected') {
-            setStatus(ConnectionStatus.RECONNECTING);
-            setTimeout(() => peer.reconnect(), 2000);
-        } else {
-            setError(err.type);
-            reject(err);
-        }
-      });
-    });
-  };
-
-  const disconnect = () => {
-    if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
-    if (servicePeerUpdateTimerRef.current) clearInterval(servicePeerUpdateTimerRef.current);
-    if (peerRef.current) peerRef.current.destroy();
-    if (beaconRef.current) beaconRef.current.destroy();
-
-    connectionsRef.current.clear();
-    modPeerIdRef.current = null;
-    sessionCodeRef.current = '';
-
-    setGameState(INITIAL_STATE);
-    setStatus(ConnectionStatus.IDLE);
-  };
-
-  const leaveSession = () => {
-    const iAmMod = gameStateRef.current.players.find(p => p.id === myId)?.isMod;
-
-    if (iAmMod && gameStateRef.current.players.length > 1) {
-      electNewModRef.current();
-    }
-    
-    // Give network time to flush message before destroying socket
-    setTimeout(() => disconnect(), 500);
-  };
+  }, [myId, updateState, connectionsRef, actionBufferRef, gameStateRef]);
 
   const transferMod = (targetId: string) => {
     if (!gameState.players.find(p => p.id === myId)?.isMod) return;
 
     logger.log(`Transferring mod to ${targetId}`);
-    
-    // Broadcast handoff FIRST with latest state to ensure no messages are lost
     broadcast({ type: 'TRANSFER_MOD', payload: { newModId: targetId, state: gameStateRef.current } });
-    
-    // Manually trigger local update for UI responsiveness
     handleMessageRef.current({ type: 'TRANSFER_MOD', payload: { newModId: targetId, state: gameStateRef.current } }, myId);
 
-    // Release beacon immediately to avoid conflicts for new mod
-    if (beaconRef.current) {
-        beaconRef.current.destroy();
-        beaconRef.current = null;
+    if (lifecycle.beaconRef.current) {
+        lifecycle.beaconRef.current.destroy();
+        lifecycle.beaconRef.current = null;
     }
-    capturingBeaconRef.current = null;
   };
 
-  // Wrappers
-  const joinQueueMatch = () => sendAction({ type: 'JOIN_QUEUE_MATCH', payload: { playerId: myId } });
-  const joinQueuePartner = (partnerId: string) => sendAction({ type: 'JOIN_QUEUE_PARTNER', payload: { playerId: myId, partnerId } });
-  const requestSolo = () => sendAction({ type: 'REQUEST_SOLO', payload: { playerId: myId, playerName: getIdentity().name } });
-  const castVote = (approve: boolean) => gameState.activeVote && sendAction({ type: 'CAST_VOTE', payload: { voteId: gameState.activeVote.id, playerId: myId, approve } });
-  const finishTurn = () => gameState.currentSession && sendAction({ type: 'FINISH_TURN', payload: { sessionId: gameState.currentSession.id, playerId: myId } });
-  const leaveQueue = (queueId: string) => sendAction({ type: 'LEAVE_QUEUE', payload: { playerId: myId, queueId } });
-  const removeFromQueue = (queueId: string) => sendAction({ type: 'REMOVE_FROM_QUEUE', payload: { queueId } });
-  const reorderQueue = (queueIds: string[]) => sendAction({ type: 'REORDER_QUEUE', payload: { queueIds } });
-  const sendMessage = (content: string) => content.trim() && sendAction({
-    type: 'SEND_CHAT',
-    payload: { 
-        content, 
-        senderId: myId, 
-        senderUuid: myUuid, 
-        senderName: getIdentity().name,
-        messageId: generateUUID() 
+  // Public Methods
+  const leaveSession = () => {
+    const iAmMod = gameState.players.find(p => p.id === myId)?.isMod;
+    if (iAmMod && gameState.players.length > 1) {
+      electNewMod();
     }
-  });
+    setTimeout(() => lifecycle.disconnect(), 500);
+  };
 
   return {
     status,
@@ -779,20 +336,23 @@ export const usePeerSession = (): UsePeerSessionReturn => {
     gameState,
     myId,
     myUuid,
-    createSession,
-    joinSession,
-    joinQueueMatch,
-    joinQueuePartner,
-    requestSolo,
-    castVote,
-    finishTurn,
-    leaveQueue,
-    removeFromQueue,
-    reorderQueue,
-    sendMessage,
-    transferMod,
-    disconnect,
+    createSession: lifecycle.createSession,
+    joinSession: lifecycle.joinSession,
+    disconnect: lifecycle.disconnect,
     leaveSession,
+    transferMod,
+    joinQueueMatch: () => sendAction({ type: 'JOIN_QUEUE_MATCH', payload: { playerId: myId } }),
+    joinQueuePartner: (partnerId) => sendAction({ type: 'JOIN_QUEUE_PARTNER', payload: { playerId: myId, partnerId } }),
+    requestSolo: () => sendAction({ type: 'REQUEST_SOLO', payload: { playerId: myId, playerName: getIdentity().name } }),
+    castVote: (approve) => gameState.activeVote && sendAction({ type: 'CAST_VOTE', payload: { voteId: gameState.activeVote.id, playerId: myId, approve } }),
+    finishTurn: () => gameState.currentSession && sendAction({ type: 'FINISH_TURN', payload: { sessionId: gameState.currentSession.id, playerId: myId } }),
+    leaveQueue: (queueId) => sendAction({ type: 'LEAVE_QUEUE', payload: { playerId: myId, queueId } }),
+    removeFromQueue: (queueId) => sendAction({ type: 'REMOVE_FROM_QUEUE', payload: { queueId } }),
+    reorderQueue: (queueIds) => sendAction({ type: 'REORDER_QUEUE', payload: { queueIds } }),
+    sendMessage: (content) => content.trim() && sendAction({
+        type: 'SEND_CHAT',
+        payload: { content, senderId: myId, senderUuid: myUuid, senderName: getIdentity().name, messageId: generateUUID() }
+    }),
     error
   };
 };
