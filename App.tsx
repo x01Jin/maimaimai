@@ -78,18 +78,26 @@ export default function App() {
     // Initialize ref on first load with messages
     if (prevMessageCountRef.current === null) {
       prevMessageCountRef.current = currentMessages.length;
+      // Count pre-existing messages from others as unread
+      if (tab !== "chat") {
+        const messagesFromOthers = currentMessages.filter(
+          (m) => m.senderUuid !== session.myUuid,
+        );
+        setUnreadCount(messagesFromOthers.length);
+      }
       return;
     }
 
     if (currentMessages.length > prevMessageCountRef.current) {
+      const newMessages = currentMessages.slice(prevMessageCountRef.current);
       const lastMsg = currentMessages[currentMessages.length - 1];
 
       // Increment unread badge if not on chat tab
       if (tab !== "chat" && lastMsg.senderUuid !== session.myUuid) {
-        setUnreadCount(
-          (prev) =>
-            prev + (currentMessages.length - prevMessageCountRef.current!),
-        );
+        const unreadIncrement = newMessages.filter(
+          (m) => m.senderUuid !== session.myUuid,
+        ).length;
+        setUnreadCount((prev) => prev + unreadIncrement);
       }
 
       // Check for mentions and replies
