@@ -603,6 +603,48 @@ export const sessionUtils = (
       };
     }
 
+    case "MOD_DECISION": {
+      const { voteId, decision, modName } = action.payload;
+      if (!nextState.activeVote || nextState.activeVote.id !== voteId)
+        return state;
+
+      const requesterName = nextState.activeVote.requesterName;
+      const requesterId = nextState.activeVote.requesterId;
+
+      if (decision === "APPROVE") {
+        return {
+          ...nextState,
+          activeVote: null,
+          queue: [
+            ...nextState.queue,
+            {
+              id: generateUUID(),
+              type: "SOLO",
+              playerIds: [requesterId],
+              timestamp: Date.now(),
+            },
+          ],
+          messages: [
+            ...nextState.messages,
+            createSystemMessage(
+              `Mod ${modName} approved Solo request by ${requesterName}.`,
+            ),
+          ],
+        };
+      } else {
+        return {
+          ...nextState,
+          activeVote: null,
+          messages: [
+            ...nextState.messages,
+            createSystemMessage(
+              `Mod ${modName} rejected Solo request by ${requesterName}.`,
+            ),
+          ],
+        };
+      }
+    }
+
     case "TRANSFER_MOD": {
       const { targetId } = action.payload;
       const targetName =

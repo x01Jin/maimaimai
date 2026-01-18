@@ -1,19 +1,49 @@
 import React, { useState, useEffect, useRef } from "react";
 import { usePeerSession } from "./hooks/usePeerSession";
+import { useDoubleTap } from "./hooks/useDoubleTap";
 import { ConnectionStatus, AppNotification } from "./types";
 import { ToastContainer, ConfirmationModal } from "./components";
 import { generateUUID } from "./utils";
-import { Users, LogOut, MessageSquare, ListOrdered } from "lucide-react";
+import {
+  Users,
+  LogOut,
+  MessageSquare,
+  ListOrdered,
+  HelpCircle,
+} from "lucide-react";
 
 // Import Views
 import { LandingView } from "./views/LandingView";
 import { QueueView } from "./views/QueueView";
 import { PlayersView } from "./views/PlayersView";
 import { ChatView } from "./views/ChatView";
+import { HelpView } from "./views/HelpView";
+
+const LeaveButton: React.FC<{ onLeave: () => void }> = ({ onLeave }) => {
+  const { isArmed, handleInteraction } = useDoubleTap(onLeave);
+
+  return (
+    <button
+      onClick={handleInteraction}
+      className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 ${
+        isArmed
+          ? "text-red-500 bg-red-500/10 scale-110 active:scale-95"
+          : "text-slate-500 hover:text-red-400"
+      }`}
+    >
+      <LogOut size={24} className={isArmed ? "animate-pulse" : ""} />
+      <span className="text-[10px] font-bold uppercase">
+        {isArmed ? "Sure?" : "Leave"}
+      </span>
+    </button>
+  );
+};
 
 export default function App() {
   const session = usePeerSession();
-  const [tab, setTab] = useState<"queue" | "players" | "chat">("queue");
+  const [tab, setTab] = useState<"queue" | "players" | "chat" | "help">(
+    "queue",
+  );
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -240,10 +270,12 @@ export default function App() {
               myUuid={session.myUuid}
               onSend={session.sendMessage}
               onVote={session.castVote}
+              onModDecision={session.modDecision}
               onReact={session.addReaction}
               onRemoveReact={session.removeReaction}
             />
           )}
+          {tab === "help" && <HelpView onClose={() => setTab("queue")} />}
         </div>
 
         <div className="bg-slate-800 border-t border-slate-700 safe-area-bottom">
@@ -277,12 +309,13 @@ export default function App() {
               <span className="text-[10px] font-bold uppercase">Chat</span>
             </button>
             <button
-              onClick={() => setConfirmLeave(true)}
-              className="flex flex-col items-center justify-center w-full h-full space-y-1 text-slate-500 hover:text-red-400"
+              onClick={() => setTab("help")}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${tab === "help" ? "text-green-400" : "text-slate-500 hover:text-slate-300"}`}
             >
-              <LogOut size={24} />
-              <span className="text-[10px] font-bold uppercase">Leave</span>
+              <HelpCircle size={24} />
+              <span className="text-[10px] font-bold uppercase">Help</span>
             </button>
+            <LeaveButton onLeave={() => setConfirmLeave(true)} />
           </div>
         </div>
       </div>

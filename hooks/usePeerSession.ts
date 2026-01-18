@@ -61,6 +61,7 @@ interface UsePeerSessionReturn {
   ) => void;
   addReaction: (messageId: string, emoji: string) => void;
   removeReaction: (messageId: string, emoji: string) => void;
+  modDecision: (voteId: string, decision: "APPROVE" | "REJECT") => void;
   transferMod: (targetId: string) => void;
   disconnect: () => void;
   leaveSession: () => void;
@@ -376,10 +377,23 @@ export const usePeerSession = (): UsePeerSessionReturn => {
     if (!gameState.players.find((p) => p.id === myId)?.isMod) return;
 
     logger.log(`Transferring mod to ${targetId}`);
-    broadcast({
+
+    // Optimization: Only send full state to the target peer (New Mod)
+    // Send a lightweight notification to everyone else
+    sendTo(targetId, {
       type: "TRANSFER_MOD",
       payload: { newModId: targetId, state: gameStateRef.current },
     });
+
+    broadcast(
+      {
+        type: "TRANSFER_MOD",
+        payload: { newModId: targetId }, // No state payload for others
+      },
+      targetId, // Exclude target as we just sent to them
+    );
+
+    // Also process locally to update UI immediately
     handleMessageRef.current(
       {
         type: "TRANSFER_MOD",
@@ -546,6 +560,16 @@ export const usePeerSession = (): UsePeerSessionReturn => {
       sendAction({
         type: "ADD_REACTION",
         payload: { messageId, playerId: myId, emoji },
+      }),
+    modDecision: (voteId, decision) =>
+      sendAction({
+        type: "MOD_DECISION",
+        payload: {
+          voteId,
+          decision,
+          modId: myId,
+          modName: getIdentity().name,
+        },
       }),
     removeReaction: (messageId, emoji) =>
       sendAction({

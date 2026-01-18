@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, User, Smile, Reply, X, Plus } from "lucide-react";
+import { Send, User, Smile, Reply, X, Plus, Check, Ban } from "lucide-react";
 import { GameState, ChatMessage } from "../types";
+import { useDoubleTap } from "../hooks/useDoubleTap";
+import { ConfirmationModal } from "../components/ConfirmationModal";
 
 interface ChatViewProps {
   gameState: GameState;
@@ -13,6 +15,7 @@ interface ChatViewProps {
     metadata?: ChatMessage["metadata"],
   ) => void;
   onVote: (approve: boolean) => void;
+  onModDecision: (voteId: string, decision: "APPROVE" | "REJECT") => void;
   onReact: (messageId: string, emoji: string) => void;
   onRemoveReact: (messageId: string, emoji: string) => void;
 }
@@ -23,6 +26,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   myUuid,
   onSend,
   onVote,
+  onModDecision,
   onReact,
   onRemoveReact,
 }) => {
@@ -31,6 +35,22 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [showEmojiPickerFor, setShowEmojiPickerFor] = useState<string | null>(
     null,
   );
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant: "danger" | "primary";
+    confirmText: string;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+    variant: "primary",
+    confirmText: "Confirm",
+  });
+
   const endRef = useRef<HTMLDivElement>(null);
   const { activeVote } = gameState;
 
@@ -90,48 +110,104 @@ export const ChatView: React.FC<ChatViewProps> = ({
       {/* Header / Active Vote Overlay */}
       {activeVote && (
         <div className="absolute top-0 left-0 right-0 z-30 p-2 bg-slate-800/80 backdrop-blur-md border-b border-slate-700">
-          <div className="bg-slate-800 rounded-md p-3 shadow-lg flex items-center justify-between border-l-4 border-orange-500">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500">
-                <User size={20} />
-              </div>
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-orange-400 opacity-80">
-                  Solo Request Active
+          <div className="bg-slate-800 rounded-md p-3 shadow-lg flex flex-col gap-3 border-l-4 border-orange-500 animate-in slide-in-from-top duration-300">
+            {/* Top Row: Info & Stats */}
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500 border border-orange-500/20">
+                  <User size={20} />
                 </div>
-                <div className="text-sm font-semibold text-white">
-                  {activeVote.requesterName} wants to play solo
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-500/80">
+                    Solo Request Active
+                  </div>
+                  <div className="text-sm font-bold text-white leading-tight">
+                    {activeVote.requesterName} wants to play solo
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-right mr-1">
+                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                  VOTES
+                </div>
+                <div className="text-xl font-black text-white leading-none tabular-nums">
+                  {activeVote.approvals.length}
+                  <span className="text-slate-600 mx-0.5 text-sm font-bold">
+                    /
+                  </span>
+                  {activeVote.required}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <div className="text-xs font-bold text-slate-400">VOTES</div>
-                <div className="text-lg font-black text-white leading-none">
-                  {activeVote.approvals.length}
-                  <span className="text-slate-500 mx-0.5 text-sm">/</span>
-                  {activeVote.required}
-                </div>
-              </div>
-
+            {/* Bottom Row: Actions */}
+            <div className="flex items-stretch gap-2">
               {!hasVoted && activeVote.requesterId !== myId && (
                 <button
                   onClick={() => onVote(true)}
-                  className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded font-bold text-xs transition-colors shadow-sm"
+                  className="flex-1 bg-green-600 hover:bg-green-500 active:scale-95 text-white py-2.5 rounded-lg font-black text-[11px] tracking-wider transition-all shadow-lg shadow-green-900/20 uppercase"
                 >
-                  APPROVE
+                  Approve Vote
                 </button>
+              )}
+
+              {gameState.players.find((p) => p.id === myId)?.isMod && (
+                <div
+                  className={`flex gap-2 ${!hasVoted && activeVote.requesterId !== myId ? "flex-[1.5]" : "flex-1"}`}
+                >
+                  <ModDecisionButton
+                    type="APPROVE"
+                    onAction={() =>
+                      setConfirmModal({
+                        isOpen: true,
+                        title: "Force Approve Solo?",
+                        message: `Are you sure you want to directly approve ${activeVote.requesterName}'s solo play request?`,
+                        onConfirm: () =>
+                          onModDecision(activeVote.id, "APPROVE"),
+                        variant: "primary",
+                        confirmText: "Approve",
+                      })
+                    }
+                  />
+                  <ModDecisionButton
+                    type="REJECT"
+                    onAction={() =>
+                      setConfirmModal({
+                        isOpen: true,
+                        title: "Reject Solo Request?",
+                        message: `Are you sure you want to reject ${activeVote.requesterName}'s solo play request?`,
+                        onConfirm: () => onModDecision(activeVote.id, "REJECT"),
+                        variant: "danger",
+                        confirmText: "Reject",
+                      })
+                    }
+                  />
+                </div>
               )}
             </div>
           </div>
         </div>
       )}
 
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={() => {
+          confirmModal.onConfirm();
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant}
+      />
+
       {/* Messages List */}
       <div className="flex-1 overflow-y-auto px-0 pt-1 pb-1 no-scrollbar scroll-smooth">
         {/* Placeholder for header spacing when vote is active */}
-        {activeVote && <div className="h-16"></div>}
+        {activeVote && <div className="h-[120px]"></div>}
 
         {gameState.messages.map((msg: ChatMessage, idx) => {
           if (msg.isSystem) {
@@ -373,5 +449,31 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </form>
       </div>
     </div>
+  );
+};
+
+const ModDecisionButton: React.FC<{
+  type: "APPROVE" | "REJECT";
+  onAction: () => void;
+}> = ({ type, onAction }) => {
+  const { isArmed, handleInteraction } = useDoubleTap(onAction);
+
+  return (
+    <button
+      onClick={handleInteraction}
+      className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-black text-[11px] tracking-wider transition-all duration-300 uppercase ${
+        type === "APPROVE"
+          ? isArmed
+            ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/50 scale-[1.02] active:scale-95"
+            : "bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/30 shadow-sm"
+          : isArmed
+            ? "bg-red-500 text-white shadow-lg shadow-red-500/50 scale-[1.02] active:scale-95"
+            : "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30 shadow-sm"
+      }`}
+      title={isArmed ? "Confirm Action" : `Mod ${type}`}
+    >
+      {type === "APPROVE" ? <Check size={14} /> : <Ban size={14} />}
+      <span>{isArmed ? "SURE?" : `FORCE ${type}`}</span>
+    </button>
   );
 };

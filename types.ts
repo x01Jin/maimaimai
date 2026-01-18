@@ -151,6 +151,15 @@ export type ClientAction =
       type: "UPDATE_PLAYER_STATUS";
       payload: { playerId: string; isConnected: boolean };
     }
+  | {
+      type: "MOD_DECISION";
+      payload: {
+        voteId: string;
+        decision: "APPROVE" | "REJECT";
+        modId: string;
+        modName: string;
+      };
+    }
   | { type: "TRANSFER_MOD"; payload: { targetId: string } };
 
 // Internal P2P Protocol Messages

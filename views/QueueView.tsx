@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useDoubleTap } from "../hooks/useDoubleTap";
 import { Reorder, useDragControls } from "framer-motion";
 import { Button } from "../components/Button";
 import { ConfirmationModal } from "../components/ConfirmationModal";
@@ -51,6 +52,24 @@ interface QueueItemProps {
   getEntryIcon: (type: string) => React.ReactNode;
 }
 
+const LeaveQueueButton: React.FC<{ onLeave: () => void }> = ({ onLeave }) => {
+  const { isArmed, handleInteraction } = useDoubleTap(onLeave);
+
+  return (
+    <button
+      onClick={handleInteraction}
+      className={`px-2 py-1 text-xs transition-all duration-300 rounded font-bold ${
+        isArmed
+          ? "bg-red-500 text-white scale-110 shadow-lg shadow-red-500/50"
+          : "text-slate-400 hover:text-red-400 bg-slate-800/50 hover:bg-slate-700"
+      }`}
+      title={isArmed ? "Click again to confirm" : "Leave Queue"}
+    >
+      {isArmed ? "SURE?" : "Leave"}
+    </button>
+  );
+};
+
 const QueueItem: React.FC<QueueItemProps> = ({
   item,
   index,
@@ -97,21 +116,7 @@ const QueueItem: React.FC<QueueItemProps> = ({
         </div>
         <div className="flex items-center gap-1">
           {canLeave && (
-            <button
-              onClick={() => {
-                promptConfirm(
-                  "Leave Queue?",
-                  "Are you sure you want to leave the queue?",
-                  () => session.leaveQueue(item.id),
-                  "danger",
-                  "Leave",
-                );
-              }}
-              className="px-2 py-1 text-xs text-slate-400 hover:text-red-400 transition-colors bg-slate-800/50 hover:bg-slate-700 rounded"
-              title="Leave Queue"
-            >
-              Leave
-            </button>
+            <LeaveQueueButton onLeave={() => session.leaveQueue(item.id)} />
           )}
           {canRemove && (
             <button

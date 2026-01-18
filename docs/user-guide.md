@@ -28,6 +28,7 @@ The interface is divided into three main tabs:
 - **Queue:** View the current players and the waiting list. Join or leave the queue from here.
 - **Players:** See everyone currently in the session. View connection quality and transfer the Mod role.
 - **Chat:** Send messages to the group and participate in active Solo play votes.
+- **Help:** Access user instructions, feature details, and about information.
 
 ---
 
@@ -49,7 +50,8 @@ Tap the **Join Queue** button to see your options:
 2. **Up Next:** When you reach the top, wait for the "Currently Playing" banner to clear.
 3. **Playing:** When it is your turn, a notification will appear, and your name will be highlighted in the top banner.
 4. **Finish:** Once your game is done, tap **Finish Turn**.
-    - If playing as a pair, the queue advances once *both* players tap Finish (or if the Mod forces a finish).
+5. **Leaving:** To leave the queue or the session, you must **double-tap** the Leave button. The first tap "arms" the button, and the second tap confirms the action.
+   - If playing as a pair, the queue advances once _both_ players tap Finish (or if the Mod forces a finish).
 
 ---
 
@@ -68,5 +70,6 @@ The session creator (Mod) has special privileges to manage the room:
 - **Remove Players:** Tap the `X` on any queue entry to remove it.
 - **Reorder Queue:** Drag and drop queue entries to rearrange the waitlist.
 - **Force Finish:** If a player forgets to tap "Finish Turn," the Mod can advance the queue manually.
+- **Direct Solo Approval:** Mods can immediately approve or reject Solo Play requests via the Chat tab (requires double-tap and confirmation).
 - **Pass Mod Role:** In the Players tab, tap the crown icon next to a player's name to transfer administrative duties.
 - **Session Recovery:** If you accidentally close your browser, you can rejoin using the same code. As long as you were the Mod, the session will be restored from your device's history.

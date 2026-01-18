@@ -53,6 +53,7 @@ State is managed as a single immutable `GameState` object.
 ### Resilience & Mobile Data Optimization
 
 - **NAT Traversal:** The system uses multiple globally distributed STUN servers and dedicated TURN relays (TCP supported) to maximize connection success rates behind CGNAT and restrictive mobile firewalls.
+- **Efficient Mod Transfer:** Moderator handoff is optimized to prevent network spikes. The full `GameState` is only transmitted via unicast to the new Moderator, while other peers receive a lightweight notification.
 - **Action Buffering:** If a player loses connection to all service peers, their actions (chats, queue joins) are buffered locally. Once a connection to a service peer is re-established, the buffer is automatically flushed.
 - **Robust Reconnection:** PeerJS `network-disconnected` events trigger an immediate automatic reconnection attempt to restore the session without user intervention.
 
@@ -69,16 +70,16 @@ The current Mod automatically saves the `GameState` to `localStorage` on every u
 
 ## P2P Message Protocol
 
-| Message Type | Direction | Description |
-| :--- | :--- | :--- |
-| `HELLO` | New -> Beacon | Initial handshake from a joining player. |
-| `PEER_DISCOVERY` | Service -> New | Provides the list of all active Peer IDs to the new player. |
-| `SYNC_STATE` | Service -> All | Broadcasts the latest authoritative `GameState`. |
-| `ACTION` | Client -> Service | Forwards a user intent (e.g., `JOIN_QUEUE`) for processing. |
-| `HEARTBEAT` | All -> All | Keep-alive with sequence number and timestamp. |
-| `PONG` | All -> All | Response to heartbeat with original timestamp and sequence. |
-| `TRANSFER_MOD` | Mod -> All | Signals handoff with current `GameState` to prevent regressions. |
-| `CLAIM_HOST` | Elected -> All | Broadcast during an election to claim the Mod role. |
+| Message Type     | Direction         | Description                                                                                                 |
+| :--------------- | :---------------- | :---------------------------------------------------------------------------------------------------------- |
+| `HELLO`          | New -> Beacon     | Initial handshake from a joining player.                                                                    |
+| `PEER_DISCOVERY` | Service -> New    | Provides the list of all active Peer IDs to the new player.                                                 |
+| `SYNC_STATE`     | Service -> All    | Broadcasts the latest authoritative `GameState`.                                                            |
+| `ACTION`         | Client -> Service | Forwards a user intent (e.g., `JOIN_QUEUE`) for processing.                                                 |
+| `HEARTBEAT`      | All -> All        | Keep-alive with sequence number and timestamp.                                                              |
+| `PONG`           | All -> All        | Response to heartbeat with original timestamp and sequence.                                                 |
+| `TRANSFER_MOD`   | Mod -> All        | Signals handoff. Optimized: sends full state only to the target, others receive a lightweight notification. |
+| `CLAIM_HOST`     | Elected -> All    | Broadcast during an election to claim the Mod role.                                                         |
 
 ---
 
