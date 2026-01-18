@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import * as Y from "yjs";
 import { Player } from "../../types";
 
@@ -14,8 +14,14 @@ export function useYjsMod(
   myPlayerId: string,
   players: Player[],
   sendSystemMessage?: (content: string) => void,
+  isCreating?: boolean,
 ): UseYjsModReturn {
   const [modId, setModId] = useState<string | null>(null);
+
+  // Join activity logging handled by Mod is removed in favor of self-reporting
+
+  // Auto-assign mod or elect new one if disconnected
+  const lastAssignedModIdRef = useRef<string | null>(null);
 
   // Sync mod from Y.Map
   useEffect(() => {
@@ -26,6 +32,11 @@ export function useYjsMod(
     const syncMod = () => {
       const currentModId = modMap.get("modId") as string | undefined;
       setModId(currentModId || null);
+
+      // Update our local tracking ref
+      if (currentModId) {
+        lastAssignedModIdRef.current = currentModId;
+      }
     };
 
     modMap.observe(syncMod);
@@ -36,47 +47,72 @@ export function useYjsMod(
     };
   }, [ydoc]);
 
-  // Auto-assign mod if none exists and we're the first player
+  // Mod logging only on assignment/transition
+  const isMod = modId === myPlayerId;
+  const modPlayer = players.find((p) => p.id === modId) || null;
+
+  // Auto-assign mod or elect new one if disconnected
   useEffect(() => {
-    if (!ydoc || !myPlayerId || modId) return;
+    if (!ydoc || !myPlayerId) return;
 
     const modMap = ydoc.getMap("mod");
-    const currentModId = modMap.get("modId") as string | undefined;
 
-    if (!currentModId && players.length > 0) {
-      // Find the player with earliest joinedAt
-      const sortedPlayers = [...players]
-        .filter((p) => p.isConnected && !p.isCustom)
-        .sort((a, b) => a.joinedAt - b.joinedAt);
+    const checkMod = () => {
+      const currentModId = modMap.get("modId") as string | undefined;
+      const modPlayer = players.find((p) => p.id === currentModId);
 
-      if (sortedPlayers.length > 0 && sortedPlayers[0].id === myPlayerId) {
-        modMap.set("modId", myPlayerId);
-        sendSystemMessage?.(`Mod auto-assigned: ${sortedPlayers[0].name}`);
+      // If joining and haven't seen any mod yet, don't claim it immediately
+      if (!isCreating && !currentModId && players.length <= 1) {
+        return;
       }
-    }
-  }, [ydoc, myPlayerId, modId, players]);
 
-  // Handle mod disconnection - elect new mod
-  useEffect(() => {
-    if (!ydoc || !modId) return;
+      // If no mod assigned, or mod player is missing (voluntary leave)
+      if (!currentModId || !modPlayer) {
+        const onlinePlayers = players
+          .filter((p) => p.isConnected && !p.isCustom)
+          .sort((a, b) => a.joinedAt - b.joinedAt);
 
-    const modPlayer = players.find((p) => p.id === modId);
-
-    // If mod is disconnected and we're the next in line, take over
-    if (modPlayer && !modPlayer.isConnected) {
-      const onlinePlayers = players
-        .filter((p) => p.isConnected && !p.isCustom)
-        .sort((a, b) => a.joinedAt - b.joinedAt);
-
-      if (onlinePlayers.length > 0 && onlinePlayers[0].id === myPlayerId) {
-        const modMap = ydoc.getMap("mod");
-        modMap.set("modId", myPlayerId);
-        sendSystemMessage?.(
-          `Mod connection lost. New mod: ${onlinePlayers[0].name}`,
-        );
+        if (onlinePlayers.length > 0 && onlinePlayers[0].id === myPlayerId) {
+          ydoc.transact(() => {
+            modMap.set("modId", myPlayerId);
+          });
+          // ONLY the person becoming mod sends the log
+          sendSystemMessage?.(`Mod auto-assigned: ${onlinePlayers[0].name}`);
+          lastAssignedModIdRef.current = myPlayerId;
+        }
+        return;
       }
-    }
-  }, [ydoc, modId, players, myPlayerId]);
+
+      // If mod is disconnected, wait for 1 minute grace period
+      if (modPlayer && !modPlayer.isConnected) {
+        const lastSeen = modPlayer.lastSeen || 0;
+        const gracePeriod = 60000; // 1 minute
+        const now = Date.now();
+
+        if (now - lastSeen > gracePeriod) {
+          const onlinePlayers = players
+            .filter((p) => p.isConnected && !p.isCustom)
+            .sort((a, b) => a.joinedAt - b.joinedAt);
+
+          if (onlinePlayers.length > 0 && onlinePlayers[0].id === myPlayerId) {
+            ydoc.transact(() => {
+              modMap.set("modId", myPlayerId);
+            });
+            sendSystemMessage?.(
+              `Mod offline for 1 minute. New mod: ${onlinePlayers[0].name}`,
+            );
+            lastAssignedModIdRef.current = myPlayerId;
+          }
+        }
+      }
+    };
+
+    // Run check every 5 seconds if there's a need
+    const interval = setInterval(checkMod, 5000);
+    checkMod(); // Initial check
+
+    return () => clearInterval(interval);
+  }, [ydoc, myPlayerId, players, sendSystemMessage, isCreating]);
 
   const transferMod = useCallback(
     (targetId: string) => {
@@ -93,9 +129,6 @@ export function useYjsMod(
     },
     [ydoc, modId, myPlayerId, players, sendSystemMessage],
   );
-
-  const isMod = modId === myPlayerId;
-  const modPlayer = players.find((p) => p.id === modId) || null;
 
   return {
     modId,

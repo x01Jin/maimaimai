@@ -20,9 +20,13 @@ export function useYjsPlayers(
   myUuid: string,
   myName: string,
   enabled: boolean = true,
+  sendSystemMessage?: (content: string) => void,
 ): UseYjsPlayersReturn {
   const [players, setPlayers] = useState<Player[]>([]);
   const [myPlayerId, setMyPlayerId] = useState<string>("");
+
+  const prevPlayersRef = useRef<Player[]>([]);
+  const hasLoggedJoin = useRef(false);
 
   // Sync players from Y.Map
   useEffect(() => {
@@ -46,6 +50,9 @@ export function useYjsPlayers(
           seenUuids.add(player.uuid);
         }
       });
+
+      prevPlayersRef.current = playerList;
+
       // Sort: Mods first, then by joinedAt
       playerList.sort((a, b) => {
         if (a.isMod !== b.isMod) return a.isMod ? -1 : 1;
@@ -127,8 +134,40 @@ export function useYjsPlayers(
         }
       }, 5000);
 
+      // Coordinator logic to detect offline players
+      const detector = setInterval(() => {
+        const currentPlayers = Array.from(playersMap.values());
+        const onlinePlayers = currentPlayers
+          .filter((p) => p.isConnected && !p.isCustom)
+          .sort((a, b) => a.joinedAt - b.joinedAt);
+
+        // Only the oldest online player (coordinator) updates others
+        if (onlinePlayers.length > 0 && onlinePlayers[0].id === myUuid) {
+          const now = Date.now();
+          const OFFLINE_THRESHOLD = 15000; // 15 seconds
+
+          ydoc.transact(() => {
+            playersMap.forEach((player, id) => {
+              if (
+                player.isConnected &&
+                !player.isCustom &&
+                player.uuid !== myUuid &&
+                player.lastSeen &&
+                now - player.lastSeen > OFFLINE_THRESHOLD
+              ) {
+                playersMap.set(id, {
+                  ...player,
+                  isConnected: false,
+                });
+              }
+            });
+          });
+        }
+      }, 5000);
+
       return () => {
         clearInterval(heartbeat);
+        clearInterval(detector);
         playersMap.unobserve(syncPlayers);
       };
     }
@@ -136,7 +175,26 @@ export function useYjsPlayers(
     return () => {
       playersMap.unobserve(syncPlayers);
     };
-  }, [ydoc, myUuid, myName, enabled]); // Added enabled to avoid redundant loop
+  }, [ydoc, myUuid, myName, enabled]);
+
+  // Reset log flag on disconnect
+  useEffect(() => {
+    if (!enabled) {
+      hasLoggedJoin.current = false;
+    }
+  }, [enabled]);
+
+  // Self-reported Join Activity Log
+  useEffect(() => {
+    if (!enabled || !sendSystemMessage || hasLoggedJoin.current) return;
+
+    // Wait until our own player entry is synced and has a name
+    const myEntry = players.find((p) => p.uuid === myUuid);
+    if (myEntry && myEntry.name) {
+      sendSystemMessage(`${myEntry.name} joined the room`);
+      hasLoggedJoin.current = true;
+    }
+  }, [players, myUuid, enabled, sendSystemMessage]);
 
   const myPlayerIdRef = useRef<string>("");
   useEffect(() => {
@@ -171,9 +229,13 @@ export function useYjsPlayers(
       if (!ydoc) return;
 
       const playersMap = ydoc.getMap<Player>("players");
-      playersMap.delete(playerId);
+      const player = playersMap.get(playerId);
+      if (player) {
+        sendSystemMessage?.(`${player.name} left the room`);
+        playersMap.delete(playerId);
+      }
     },
-    [ydoc],
+    [ydoc, sendSystemMessage],
   );
 
   const updatePlayer = useCallback(

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "../components/Button";
 import { Modal } from "../components/Modal";
-import { Crown, Users, Trash2, Plus, UserPlus } from "lucide-react";
+import { Crown, Users, Trash2, UserPlus } from "lucide-react";
 import { GameState, Player } from "../types";
 import { SessionAPI } from "../sessionTypes";
 import { ConfirmationModal } from "../components/ConfirmationModal";
@@ -170,7 +170,7 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
                           : "text-slate-400"
                     }`}
                   >
-                    {p.isCustom ? "Guest" : p.isConnected ? "Live" : "Away"}
+                    {p.isCustom ? "Guest" : p.isConnected ? "Live" : "Offline"}
                   </span>
                 </div>
               </div>

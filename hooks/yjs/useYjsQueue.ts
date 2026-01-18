@@ -284,6 +284,10 @@ export function useYjsQueue(
           newApprovals.includes(id),
         );
         if (allApproved) {
+          const finishedNames = current.playerIds
+            .map((id) => players.find((p) => p.id === id)?.name || "Unknown")
+            .join(" & ");
+          sendSystemMessage?.(`Turn complete: ${finishedNames}`);
           popNextSession();
         }
       }

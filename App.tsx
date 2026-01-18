@@ -68,21 +68,28 @@ export default function App() {
 
   const [myName, setMyName] = useState(() => getIdentity().name || "");
 
+  const chatHook = useYjsChat(ydoc);
+  const { messages, sendSystemMessage } = chatHook;
+
   const playersHook = useYjsPlayers(
     ydoc,
     myUuid,
     myName,
     connectionStatus === ConnectionStatus.CONNECTED || sessionHook.isCreating,
+    sendSystemMessage,
   );
   const { players, myPlayer, addCustomPlayer, removeCustomPlayer } =
     playersHook;
 
   const myId = myPlayer?.id || "";
 
-  const chatHook = useYjsChat(ydoc);
-  const { messages, sendSystemMessage } = chatHook;
-
-  const modHook = useYjsMod(ydoc, myId, players, sendSystemMessage);
+  const modHook = useYjsMod(
+    ydoc,
+    myId,
+    players,
+    sendSystemMessage,
+    sessionHook.isCreating,
+  );
   const { isMod, transferMod } = modHook;
 
   const queueHook = useYjsQueue(ydoc, players, myId, isMod, sendSystemMessage);
@@ -612,6 +619,10 @@ export default function App() {
         onClose={() => setConfirmLeave(false)}
         onConfirm={() => {
           isLeavingRef.current = true;
+          // Clean up player entry before leaving for immediate detection
+          if (myId) {
+            playersHook.removePlayer(myId);
+          }
           session.leaveSession();
         }}
         title="Leave the Party?"
