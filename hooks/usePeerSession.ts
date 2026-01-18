@@ -5,13 +5,13 @@ import {
   ClientAction,
   DataConnection,
   PeerError,
-  PeerInstance,
 } from "../types";
 import Peer from "peerjs";
 import { getBeaconId } from "./peer/peerUtils";
 import {
   getIdentity,
   saveHostState,
+  loadHostState,
   generateUUID,
   saveIdentity,
   setActiveSession,
@@ -142,10 +142,6 @@ export const usePeerSession = (): UsePeerSessionReturn => {
   } = usePeerConnections(myId, gameStateRef);
 
   // 2. State Updates
-  const broadcastDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-
   const updateState = useCallback(
     (updater: (prev: GameState) => GameState, lastAction?: ClientAction) => {
       setGameState((prev) => {
@@ -166,14 +162,14 @@ export const usePeerSession = (): UsePeerSessionReturn => {
         if (prev.stateHash !== newHash) {
           const iAmServicePeer = final.servicePeers.includes(myId);
           if (iAmServicePeer) {
-            if (broadcastDebounceRef.current)
-              clearTimeout(broadcastDebounceRef.current);
-            broadcastDebounceRef.current = setTimeout(() => {
+            // Immediate broadcast - no debounce
+            // Use setTimeout(..., 0) to push to next tick to avoid blocking render
+            setTimeout(() => {
               broadcast({
                 type: "SYNC_STATE",
                 payload: { state: final, stateHash: newHash, lastAction },
               });
-            }, 100);
+            }, 0);
           }
         }
         return final;
@@ -435,6 +431,7 @@ export const usePeerSession = (): UsePeerSessionReturn => {
     setMyUuid(saveIdentity(username, myUuid).uuid);
 
     const beaconId = getBeaconId(code);
+    const hasHostState = !!loadHostState(code);
 
     // Create a temporary peer to check for beacon existence
     const PeerConstructor = (Peer as any).default ?? Peer;
@@ -443,20 +440,36 @@ export const usePeerSession = (): UsePeerSessionReturn => {
     return new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
         tempPeer.destroy();
-        // If timeout, assume beacon is dead and host it
-        lifecycle
-          .createSession(username, undefined, code)
-          .then((c) => {
-            setActiveSession(c);
-            resolve();
-          })
-          .catch(reject);
-      }, 3000);
+        // If timeout and we were host, recover. Otherwise, fail.
+        if (hasHostState) {
+          logger.log("Recovery timeout: Resuming as Host.");
+          lifecycle
+            .createSession(username, undefined, code)
+            .then((c) => {
+              setActiveSession(c);
+              resolve();
+            })
+            .catch((err) => {
+              if (err.message === "BEACON_TAKEN") {
+                logger.log("Beacon stolen during timeout. Joining instead.");
+                lifecycle
+                  .joinSession(code, username)
+                  .then(resolve)
+                  .catch(reject);
+              } else {
+                reject(err);
+              }
+            });
+        } else {
+          logger.error("Recovery timeout: Session unreachable.");
+          setStatus(ConnectionStatus.ERROR);
+          reject(new Error("Session unreachable."));
+        }
+      }, 6000); // 6s timeout for more reliable beacon check
 
       tempPeer.on("open", () => {
         const conn = tempPeer.connect(beaconId, { reliable: true });
 
-        // PeerJS often emits peer-unavailable on the PEER object, not the connection
         const errorHandler = (err: any) => {
           if (
             err.type === "peer-unavailable" &&
@@ -465,13 +478,31 @@ export const usePeerSession = (): UsePeerSessionReturn => {
             clearTimeout(timeout);
             tempPeer.off("error", errorHandler);
             tempPeer.destroy();
-            lifecycle
-              .createSession(username, undefined, code)
-              .then((c) => {
-                setActiveSession(c);
-                resolve();
-              })
-              .catch(reject);
+
+            if (hasHostState) {
+              logger.log("Beacon unavailable: Resuming as Host.");
+              lifecycle
+                .createSession(username, undefined, code)
+                .then((c) => {
+                  setActiveSession(c);
+                  resolve();
+                })
+                .catch((err) => {
+                  if (err.message === "BEACON_TAKEN") {
+                    logger.log("Beacon stolen during check. Joining instead.");
+                    lifecycle
+                      .joinSession(code, username)
+                      .then(resolve)
+                      .catch(reject);
+                  } else {
+                    reject(err);
+                  }
+                });
+            } else {
+              logger.error("Beacon unavailable: Session unreachable.");
+              setStatus(ConnectionStatus.ERROR);
+              reject(new Error("Session unreachable."));
+            }
           }
         };
         tempPeer.on("error", errorHandler);
@@ -491,32 +522,58 @@ export const usePeerSession = (): UsePeerSessionReturn => {
         });
 
         conn.on("error", () => {
+          if (!hasHostState) return; // Wait for peer-unavailable or timeout for clients
           clearTimeout(timeout);
           tempPeer.off("error", errorHandler);
           tempPeer.destroy();
-          // Beacon unavailable or error, host it
           lifecycle
             .createSession(username, undefined, code)
             .then((c) => {
               setActiveSession(c);
               resolve();
             })
-            .catch(reject);
+            .catch((err) => {
+              if (err.message === "BEACON_TAKEN") {
+                logger.log("Beacon stolen during conn error. Joining instead.");
+                lifecycle
+                  .joinSession(code, username)
+                  .then(resolve)
+                  .catch(reject);
+              } else {
+                reject(err);
+              }
+            });
         });
       });
 
       tempPeer.on("error", (err: any) => {
-        // Generic peer error (e.g. network)
         if (err.type !== "peer-unavailable") {
           clearTimeout(timeout);
           tempPeer.destroy();
-          lifecycle
-            .createSession(username, undefined, code)
-            .then((c) => {
-              setActiveSession(c);
-              resolve();
-            })
-            .catch(reject);
+          if (hasHostState) {
+            lifecycle
+              .createSession(username, undefined, code)
+              .then((c) => {
+                setActiveSession(c);
+                resolve();
+              })
+              .catch((err) => {
+                if (err.message === "BEACON_TAKEN") {
+                  logger.log(
+                    "Beacon stolen during peer error. Joining instead.",
+                  );
+                  lifecycle
+                    .joinSession(code, username)
+                    .then(resolve)
+                    .catch(reject);
+                } else {
+                  reject(err);
+                }
+              });
+          } else {
+            setStatus(ConnectionStatus.ERROR);
+            reject(new Error("Connection failed."));
+          }
         }
       });
     });
@@ -526,10 +583,24 @@ export const usePeerSession = (): UsePeerSessionReturn => {
   const leaveSession = () => {
     clearActiveSession();
     const iAmMod = gameState.players.find((p) => p.id === myId)?.isMod;
+
     if (iAmMod && gameState.players.length > 1) {
-      electNewMod();
+      // Find valid candidates (connected, not me, not custom)
+      const candidates = gameState.players
+        .filter((p) => p.id !== myId && p.isConnected && !p.isCustom)
+        .sort((a, b) => a.joinedAt - b.joinedAt);
+
+      if (candidates.length > 0) {
+        const successor = candidates[0];
+        logger.log(`Leaving session. Handing over Mod to ${successor.name}`);
+        transferMod(successor.id);
+      } else {
+        // Fallback to election logic if no obvious successor found
+        electNewMod();
+      }
     }
-    setTimeout(() => lifecycle.disconnect(), 500);
+    // Give time for the transfer message to go out before killing connection
+    setTimeout(() => lifecycle.disconnect(), 1000);
   };
 
   return {

@@ -1,9 +1,13 @@
 import React from "react";
+import { motion, HTMLMotionProps } from "framer-motion";
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "danger" | "ghost" | "success";
+interface ButtonProps extends Omit<
+  HTMLMotionProps<"button">,
+  "variant" | "onAnimationStart" | "onDrag" | "onDragStart" | "onDragEnd"
+> {
+  variant?: "primary" | "secondary" | "danger" | "ghost" | "success" | "accent";
   fullWidth?: boolean;
-  size?: "default" | "square";
+  size?: "default" | "square" | "lg";
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -15,30 +19,36 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    "rounded-xl font-bold transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center";
+    "rounded-2xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center select-none";
 
   const sizeStyles = {
-    default: "py-3 px-6",
-    square: "p-0",
+    default: "py-2.5 px-5 text-sm",
+    lg: "py-3 px-6 text-base",
+    square: "p-2.5",
   };
 
   const variants = {
     primary:
-      "bg-cyan-400 text-slate-900 hover:bg-cyan-300 shadow-lg shadow-cyan-400/20",
+      "bg-dreamy-blue text-slate-700 hover:brightness-105 shadow-md shadow-dreamy-blue/20",
     secondary:
-      "bg-pink-500 text-white hover:bg-pink-400 shadow-lg shadow-pink-500/20",
-    danger: "bg-red-500 text-white hover:bg-red-400",
-    ghost: "bg-slate-800 text-slate-300 hover:bg-slate-700",
+      "bg-dreamy-pink text-slate-700 hover:brightness-105 shadow-md shadow-dreamy-pink/20",
+    accent:
+      "bg-dreamy-purple text-white hover:brightness-105 shadow-md shadow-dreamy-purple/20",
+    danger: "bg-red-400 text-white hover:bg-red-300",
+    ghost: "bg-white/40 text-slate-600 hover:bg-white/60 backdrop-blur-sm",
     success:
-      "bg-green-500 text-white hover:bg-green-400 shadow-lg shadow-green-500/20",
+      "bg-dreamy-green text-slate-700 hover:brightness-105 shadow-md shadow-dreamy-green/20",
   };
 
   return (
-    <button
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 400, damping: 17 }}
       className={`${baseStyles} ${sizeStyles[size]} ${variants[variant]} ${fullWidth ? "w-full" : ""} ${className}`}
       {...props}
     >
       {children}
-    </button>
+    </motion.button>
   );
 };

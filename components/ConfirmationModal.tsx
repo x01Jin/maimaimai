@@ -51,7 +51,9 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         </>
       }
     >
-      <p className="text-slate-300">{message}</p>
+      <p className="text-slate-600 font-bold text-center leading-relaxed">
+        {message}
+      </p>
     </Modal>
   );
 };

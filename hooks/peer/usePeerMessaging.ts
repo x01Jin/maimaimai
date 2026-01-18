@@ -28,7 +28,6 @@ interface MessagingProps {
 
 export const usePeerMessaging = ({
   myId,
-  myUuid,
   gameStateRef,
   setGameState,
   updateState,
@@ -100,7 +99,11 @@ export const usePeerMessaging = ({
               return;
             }
 
-            const mergedPlayers = receivedState.players.map((p) => {
+            const incomingPlayers = Array.isArray(receivedState.players)
+              ? receivedState.players
+              : [];
+
+            const mergedPlayers = incomingPlayers.map((p) => {
               const localPlayer = gameStateRef.current.players.find(
                 (lp) => lp.id === p.id,
               );
@@ -143,6 +146,7 @@ export const usePeerMessaging = ({
           const iAmServicePeer =
             gameStateRef.current.servicePeers.includes(myId);
           if (iAmServicePeer) {
+            console.log("Mod handling ACTION:", action);
             updateState((prev) => sessionUtils(prev, action, peerId));
           }
           break;
@@ -169,7 +173,7 @@ export const usePeerMessaging = ({
                 isMod: p.id === newModId,
               })),
               servicePeers: [newModId, ...otherServicePeers].slice(0, 3),
-              messages: mergeMessages(base.messages, [
+              messages: mergeMessages(prev.messages, [
                 ...(latestState?.messages || []),
                 {
                   id: `mod-transfer-${newModId}-${base.version + 100}`,

@@ -33,26 +33,20 @@ export const createSystemMessage = (content: string): ChatMessage => ({
 
 // Simple hash for state comparison
 export const hashState = (state: GameState): string => {
-  const str = JSON.stringify({
-    q: state.queue,
-    cs: state.currentSession,
-    fa: state.finishApprovals,
-    p: state.players.map((p) => ({ id: p.id, c: p.isConnected, m: p.isMod })),
-    v: state.activeVote,
-    // Use a combined string of message IDs + their reaction counts/keys to detect reaction changes
-    m_sync: state.messages.map((m) => ({
-      i: m.id,
-      r: m.reactions
-        ? Object.entries(m.reactions)
-            .map(([e, u]) => e + u.length)
-            .join("")
-        : "",
-    })),
-    sp: state.servicePeers,
-  });
+  // Use version and a few key structural markers for a very fast "is it different" check
+  const markers = [
+    state.version,
+    state.queue.length,
+    state.players.length,
+    state.currentSession?.id || "",
+    state.activeVote?.id || "",
+    state.messages.length,
+    state.servicePeers.join(","),
+  ].join("|");
+
   let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
+  for (let i = 0; i < markers.length; i++) {
+    const char = markers.charCodeAt(i);
     hash = (hash << 5) - hash + char;
     hash = hash & hash;
   }
@@ -303,7 +297,7 @@ export const sessionUtils = (
 
       const requesterName = action.payload.playerName;
       const onlinePlayers = nextState.players.filter(
-        (p) => p.isConnected,
+        (p) => p.isConnected && !p.isCustom,
       ).length;
 
       // Auto-approve if small group
@@ -532,6 +526,7 @@ export const sessionUtils = (
     }
 
     case "REORDER_QUEUE": {
+      console.log("Processing REORDER_QUEUE", action.payload.queueIds);
       const idMap = new Map(nextState.queue.map((q) => [q.id, q]));
       const newQueue = action.payload.queueIds
         .map((id) => idMap.get(id))
@@ -748,34 +743,139 @@ export const sessionUtils = (
 // Final pass to ensure consistency and limits
 
 export const finalizeState = (state: GameState): GameState => {
-  // Ensure all lists have unique IDs to prevent React key collisions
+  // 1. Deep sanitization for critical arrays
+  const sanitizePlayers = (players: any[]): Player[] => {
+    if (!Array.isArray(players)) {
+      console.warn("finalizeState: players is not an array", players);
+      return [];
+    }
+    const valid = players.filter(
+      (p) => p && typeof p === "object" && p.id && p.uuid,
+    );
+    if (valid.length < players.length) {
+      console.warn(
+        `finalizeState: Dropped ${players.length - valid.length} invalid players`,
+      );
+    }
+    return valid.map((p) => ({
+      ...p,
+      id: String(p.id),
+      uuid: String(p.uuid),
+      name: String(p.name || "Unknown"),
+      isMod: !!p.isMod,
+      isConnected: !!p.isConnected,
+      isCustom: !!p.isCustom,
+    }));
+  };
+
+  const sanitizeQueue = (queue: any[]): QueueEntry[] => {
+    if (!Array.isArray(queue)) {
+      console.warn("finalizeState: queue is not an array", queue);
+      return [];
+    }
+    const valid = queue.filter((q) => q && typeof q === "object" && q.id);
+    if (valid.length < queue.length) {
+      console.warn(
+        `finalizeState: Dropped ${queue.length - valid.length} invalid queue items`,
+      );
+    }
+    return valid.map((q) => {
+      let type: "SOLO" | "MATCH" | "PARTNER" = "MATCH";
+      const incomingType = String(q.type || "").toUpperCase();
+      if (incomingType === "SOLO") type = "SOLO";
+      if (incomingType === "PARTNER") type = "PARTNER";
+
+      return {
+        ...q,
+        id: String(q.id),
+        playerIds: Array.isArray(q.playerIds) ? q.playerIds.map(String) : [],
+        type,
+      };
+    });
+  };
+
+  const sanitizeVote = (vote: any): GameState["activeVote"] => {
+    if (!vote) return null;
+    if (typeof vote !== "object" || !vote.id) {
+      console.warn("finalizeState: Dropped invalid vote", vote);
+      return null;
+    }
+    return {
+      ...vote,
+      id: String(vote.id),
+      requesterId: String(vote.requesterId),
+      requesterName: String(vote.requesterName || "Unknown"),
+      approvals: Array.isArray(vote.approvals)
+        ? vote.approvals.map(String)
+        : [],
+      required: Number(vote.required) || 0,
+      createdAt: Number(vote.createdAt) || Date.now(),
+    };
+  };
+
+  const sanitizeMessages = (msgs: any[]): ChatMessage[] => {
+    if (!Array.isArray(msgs)) return [];
+    return msgs
+      .filter((m) => m && typeof m === "object" && m.id)
+      .map((m) => ({
+        ...m,
+        id: String(m.id),
+        content: String(m.content || ""),
+        senderId: String(m.senderId),
+        senderName: String(m.senderName || "Unknown"),
+        timestamp: Number(m.timestamp) || Date.now(),
+        reactions:
+          m.reactions && typeof m.reactions === "object" ? m.reactions : {},
+      }));
+  };
+
+  const sanitizeCurrentSession = (cs: any): GameState["currentSession"] => {
+    if (!cs) return null;
+    if (typeof cs !== "object" || !cs.id) return null;
+
+    let type: "SOLO" | "MATCH" | "PARTNER" = "MATCH";
+    const incomingType = String(cs.type || "").toUpperCase();
+    if (incomingType === "SOLO") type = "SOLO";
+    if (incomingType === "PARTNER") type = "PARTNER";
+
+    return {
+      ...cs,
+      id: String(cs.id),
+      playerIds: Array.isArray(cs.playerIds) ? cs.playerIds.map(String) : [],
+      type,
+    };
+  };
+
+  const safePlayers = sanitizePlayers(state.players);
+  const safeQueue = sanitizeQueue(state.queue);
+  const safeMessages = sanitizeMessages(state.messages);
+  const safeVote = sanitizeVote(state.activeVote);
+  const safeCurrentSession = sanitizeCurrentSession(state.currentSession);
+  const safeServicePeers = Array.isArray(state.servicePeers)
+    ? state.servicePeers.map(String)
+    : [];
 
   const deduplicate = <T extends { id: string }>(list: T[]): T[] => {
     const seen = new Set();
-
     return list.filter((item) => {
       if (seen.has(item.id)) return false;
-
       seen.add(item.id);
-
       return true;
     });
   };
 
   const limitedMessages =
-    state.messages.length > NETWORK_CONFIG.MAX_CHAT_HISTORY
-      ? state.messages.slice(-NETWORK_CONFIG.MAX_CHAT_HISTORY)
-      : state.messages;
+    safeMessages.length > NETWORK_CONFIG.MAX_CHAT_HISTORY
+      ? safeMessages.slice(-NETWORK_CONFIG.MAX_CHAT_HISTORY)
+      : safeMessages;
 
   return {
     ...state,
-
+    players: deduplicate(safePlayers),
+    queue: deduplicate(safeQueue),
+    currentSession: safeCurrentSession,
     messages: deduplicate(limitedMessages),
-
-    players: deduplicate(state.players),
-
-    queue: deduplicate(state.queue),
-
-    servicePeers: [...new Set(state.servicePeers)], // Unique IDs only
+    activeVote: safeVote,
+    servicePeers: [...new Set(safeServicePeers)],
   };
 };

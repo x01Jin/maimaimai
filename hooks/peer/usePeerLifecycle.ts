@@ -57,54 +57,65 @@ export const usePeerLifecycle = ({
   const capturingBeaconRef = useRef<string | null>(null);
 
   const tryCaptureBeacon = useCallback(
-    (code: string, attempt = 0) => {
+    (code: string, attempt = 0): Promise<boolean> => {
       const beaconId = getBeaconId(code);
 
-      if (
-        beaconRef.current ||
-        (capturingBeaconRef.current === beaconId && attempt === 0)
-      )
-        return;
+      if (beaconRef.current) return Promise.resolve(true);
 
       if (attempt === 0) {
         logger.log(`Attempting to capture beacon: ${beaconId}`);
         capturingBeaconRef.current = beaconId;
       }
 
-      const beacon = new PeerConstructor(beaconId, {
-        config: NETWORK_CONFIG.PEERJS_CONFIG,
-      });
+      return new Promise((resolve) => {
+        const beacon = new PeerConstructor(beaconId, {
+          config: NETWORK_CONFIG.PEERJS_CONFIG,
+        });
 
-      beacon.on("open", () => {
-        logger.log(`Beacon captured: ${beaconId}`);
-        beaconRef.current = beacon;
-        capturingBeaconRef.current = null;
-        beacon.on("connection", (conn: DataConnection) =>
-          setupConnectionListeners(conn, true),
-        );
-      });
-
-      beacon.on("error", (err: PeerError) => {
-        beacon.destroy();
-
-        if (err.type === "unavailable-id" || err.type === "network") {
-          if (attempt < NETWORK_CONFIG.BEACON_RETRY_ATTEMPTS) {
-            const delay =
-              attempt < 3 ? 500 : NETWORK_CONFIG.BEACON_RETRY_DELAY_MS;
-            logger.warn(
-              `Beacon ID ${beaconId} ${err.type} error. Retrying in ${delay}ms... (Attempt ${attempt + 1})`,
-            );
-            setTimeout(() => tryCaptureBeacon(code, attempt + 1), delay);
-          } else {
-            logger.error(
-              `Failed to capture beacon ${beaconId} after ${attempt} attempts: ${err.type}`,
-            );
-            capturingBeaconRef.current = null;
-          }
-        } else {
-          logger.error(`Fatal beacon error: ${err.type}`);
+        beacon.on("open", () => {
+          logger.log(`Beacon captured: ${beaconId}`);
+          beaconRef.current = beacon;
           capturingBeaconRef.current = null;
-        }
+          beacon.on("connection", (conn: DataConnection) =>
+            setupConnectionListeners(conn, true),
+          );
+          resolve(true);
+        });
+
+        beacon.on("error", (err: PeerError) => {
+          beacon.destroy();
+
+          if (err.type === "unavailable-id") {
+            logger.warn(`Beacon ID ${beaconId} is already taken.`);
+            capturingBeaconRef.current = null;
+            resolve(false);
+            return;
+          }
+
+          if (err.type === "network" || err.type === "peer-unavailable") {
+            if (attempt < NETWORK_CONFIG.BEACON_RETRY_ATTEMPTS) {
+              const delay =
+                attempt < 3 ? 500 : NETWORK_CONFIG.BEACON_RETRY_DELAY_MS;
+              logger.warn(
+                `Beacon ID ${beaconId} ${err.type} error. Retrying in ${delay}ms... (Attempt ${attempt + 1})`,
+              );
+              setTimeout(
+                () => resolve(tryCaptureBeacon(code, attempt + 1)),
+                delay,
+              );
+            } else {
+              logger.error(
+                `Failed to capture beacon ${beaconId} after ${attempt} attempts: ${err.type}`,
+              );
+              capturingBeaconRef.current = null;
+              resolve(false);
+            }
+          } else {
+            logger.error(`Fatal beacon error: ${err.type}`);
+            capturingBeaconRef.current = null;
+            resolve(false);
+          }
+        });
       });
     },
     [setupConnectionListeners],
@@ -127,7 +138,7 @@ export const usePeerLifecycle = ({
     });
 
     return new Promise((resolve, reject) => {
-      peer.on("open", (id: string) => {
+      peer.on("open", async (id: string) => {
         setMyId(id);
         peerRef.current = peer;
 
@@ -163,9 +174,18 @@ export const usePeerLifecycle = ({
         setGameState(initialState);
         modPeerIdRef.current = id;
         lastModPulseRef.current = Date.now();
+
+        // During recovery, we MUST capture the beacon. If it's taken, we fail.
+        const captured = await tryCaptureBeacon(code);
+        if (!captured && recoverCode) {
+          peer.destroy();
+          setStatus(ConnectionStatus.ERROR);
+          reject(new Error("BEACON_TAKEN"));
+          return;
+        }
+
         setStatus(ConnectionStatus.CONNECTED);
         addRecentSession(code);
-        tryCaptureBeacon(code);
         resolve(code);
       });
 

@@ -4,10 +4,43 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <title>MaiMaiMai</title>
+    <!-- Friendly rounded typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&display=swap"
+      rel="stylesheet"
+    />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Quicksand", "sans-serif"],
+            },
+            colors: {
+              dreamy: {
+                pink: "#FF8C94" /* Prism/Plus Pinkish */,
+                blue: "#67B6F5" /* Sky blue */,
+                purple: "#9F86FF" /* Prism Indigo/Purple */,
+                yellow: "#FFE66D" /* Golden yellow */,
+                green: "#4ECDC4" /* Mint/Teal */,
+                dark: "#2D3436" /* Rich dark for readability */,
+                slate: "#636E72" /* Medium slate */,
+              },
+            },
+            borderRadius: {
+              "4xl": "2.5rem",
+              "5xl": "3.5rem",
+            },
+          },
+        },
+      };
+    </script>
     <style>
       /* Hide scrollbar for Chrome, Safari and Opera */
       .no-scrollbar::-webkit-scrollbar {
@@ -22,11 +55,87 @@
         /* Firefox */
       }
 
+      .safe-area-bottom {
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+
+      html,
       body {
-        background-color: #0f172a;
-        /* Slate 900 */
-        color: #f8fafc;
-        /* Slate 50 */
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        background: #9f86ff;
+      }
+
+      body {
+        /* Rich Prism gradient background */
+        background: linear-gradient(
+          160deg,
+          #9f86ff 0%,
+          #67b6f5 25%,
+          #b2f2e3 50%,
+          #ffd3e0 75%,
+          #ff8c94 100%
+        );
+        background-size: 200% 200%;
+        animation: prismShift 20s ease infinite;
+        background-attachment: fixed;
+        min-height: 100%;
+        min-height: 100dvh;
+        color: #2d3436; /* Darker, high contrast text */
+        font-family: "Quicksand", sans-serif;
+        overflow: hidden; /* Prevent body scrolling entirely */
+      }
+
+      @keyframes prismShift {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+
+      /* Glassmorphism utility with better contrast */
+      .glass-card {
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 0 4px 16px rgba(159, 134, 255, 0.1);
+        will-change: transform, opacity;
+      }
+
+      /* Mobile Performance & Layout Optimization */
+      @media (max-width: 768px) {
+        .glass-card,
+        .backdrop-blur-3xl,
+        .backdrop-blur-xl,
+        .backdrop-blur-md,
+        .blur-2xl,
+        .blur-xl,
+        .blur-lg {
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+          filter: none !important;
+        }
+      }
+
+      /* Touch action optimization */
+      * {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+      }
+
+      /* Force 3D for the main background wrapper if needed */
+      #root {
+        transform: translateZ(0);
+        height: 100%;
+        width: 100%;
       }
     </style>
     <script type="importmap">
