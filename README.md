@@ -27,14 +27,16 @@ For detailed information please check **[Documentation Index](./docs/index.md)**
 ## Tech Stack
 
 - **React 19**
-- **PeerJS** (WebRTC for P2P)
+- **Y.js + y-webrtc** (CRDTs over WebRTC for P2P synchronization; primary network layer for sessions; persistent local storage via `y-indexeddb`)
+- **PeerJS** (optional/legacy; included but not required for core sync)
 - **Framer Motion** (Smooth UI animations)
 - **Tailwind CSS** (Modern utility-first styling)
 - **Lucide React** (Iconography)
 
 ## 🌐 Hosting
 
-This application is designed to be hosted on **GitHub Pages**. Since it is entirely client-side and uses PeerJS for signaling, no backend infrastructure is required. It is a "serverless" experience in the truest sense.
+This application is designed to be hosted on **GitHub Pages**. Since it is entirely client-side and uses **Y.js + y-webrtc** for P2P synchronization (with optional public signaling servers and TURN relays), no backend infrastructure is required. See `docs/networking.md` for networking configuration and troubleshooting.
 
 ---
-*Created for the Maimai community. Stay tuned, stay playing!*
+
+_Created for the Maimai community. Stay tuned, stay playing!_

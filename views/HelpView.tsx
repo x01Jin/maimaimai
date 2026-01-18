@@ -45,8 +45,8 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
                 Welcome to MaiMaiMai!
               </h3>
               <p className="text-slate-600 text-sm font-bold leading-relaxed">
-                A whimsical arcade companion for rhythm gamers. Fair queues.
-                Live updates. Zero stress.
+                A decent arcade queueing companion for maimai players. Fair
+                queues. Live updates. Zero stress.
               </p>
             </div>
 
@@ -56,10 +56,10 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
               </h4>
               <ul className="space-y-2">
                 {[
-                  "One person hosts a session.",
-                  "Friends join via shorthand code.",
+                  "One person creates a Session and becomes the Host/Mod.",
+                  "Players need to get the invite code from the host to join.",
                   "Queue up when you're ready to play.",
-                  "Track live turn updates!",
+                  "Track live queue updates!",
                 ].map((text, i) => (
                   <li
                     key={i}
@@ -101,7 +101,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
                       Partner
                     </strong>
                     <p className="text-dreamy-slate text-[10px] font-bold leading-none mt-0.5">
-                      Link up with your bestie.
+                      Join the queue together with a specific friend.
                     </p>
                   </div>
                 </div>
@@ -114,7 +114,10 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
                       Solo Play
                     </strong>
                     <p className="text-dreamy-slate text-[10px] font-bold leading-none mt-0.5">
-                      The stage all to yourself.
+                      Request to play alone. If there are more than 4 players,
+                      this will require adequate votes (&gt;50%) from other
+                      players to be approved. Or the mod can approve it
+                      directly.
                     </p>
                   </div>
                 </div>
@@ -152,8 +155,8 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
                   <ListOrdered size={16} className="text-dreamy-blue" /> Next Up
                 </h4>
                 <p className="text-slate-600 text-[11px] font-bold leading-relaxed">
-                  The ordered list of players. Watch your rank climb as groups
-                  move onto the stage!
+                  Shows the ordered list of players waiting for their turn. You
+                  can verify your position here.
                 </p>
               </div>
             </div>
@@ -167,10 +170,10 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
               </h4>
               <ul className="space-y-1.5">
                 {[
-                  "Reorder any group",
-                  "Remove missing players",
-                  "Add custom player/guest",
-                  "Force finish lingering turns",
+                  "Reorder the queue.",
+                  "Remove players or entire groups from the queue.",
+                  "Add and Queue Guest Players who don't have a device.",
+                  "Force finish a turn if players forget to end it.",
                 ].map((text, i) => (
                   <li
                     key={i}
@@ -193,7 +196,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
                 Player List
               </h3>
               <p className="text-dreamy-slate font-bold leading-relaxed">
-                Connect and keep tabs on fellow rhythm enthusiasts.
+                See who is currently connected to the session.
               </p>
             </div>
 
@@ -208,14 +211,14 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
                   color: "bg-dreamy-green/10",
                 },
                 {
-                  title: "Custom Players",
-                  desc: "Players managed by the host. Ideal for local arcade friends.",
+                  title: "Guest Players",
+                  desc: 'Mods can create "Guest Players" for people without devices/internet connection. They appear with a purple label and their specific queue actions are managed by the Mod.',
                   icon: <User size={20} className="text-dreamy-purple" />,
                   color: "bg-dreamy-purple/10",
                 },
                 {
                   title: "Moderator",
-                  desc: "The session leader who keeps the peace and handles the flow.",
+                  desc: "The player with the Crown icon is the Mod. They manage the session and fix inconsistencies. The mod can transfer their role to another player if they want to.",
                   icon: <Crown size={20} className="text-dreamy-yellow" />,
                   color: "bg-dreamy-yellow/10",
                 },
@@ -251,7 +254,10 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
                 Socializing
               </h3>
               <p className="text-dreamy-slate font-bold leading-relaxed">
-                Coordinate with teammates or just share your glory!
+                Stay in touch with other players. With this instead of waiting
+                in the cab they can go out and do other stuff and still see the
+                queue, they can track whenever they need to go back to the cab
+                if it's almost their turn.
               </p>
             </div>
 
@@ -317,13 +323,13 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
                 MaiMaiMai
               </h2>
               <p className="text-dreamy-slate font-black uppercase tracking-widest text-[9px] opacity-40">
-                Companion
+                Queueing Service
               </p>
             </div>
 
             <div className="glass-card rounded-3xl p-6 border-2 border-white max-w-sm mx-auto shadow-lg">
               <h3 className="text-[9px] uppercase tracking-[0.2em] font-black text-dreamy-slate mb-4 pb-2 border-b border-white/50">
-                Hall of Fame
+                Credits
               </h3>
 
               <div className="space-y-5">

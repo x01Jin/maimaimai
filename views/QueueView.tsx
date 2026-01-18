@@ -762,7 +762,7 @@ export const QueueView: React.FC<QueueViewProps> = ({
               setShowModQueueModal(true);
             }}
             className="w-14 h-14 shrink-0 rounded-3xl ring-4 ring-white"
-            title="Queue Custom Player"
+            title="Queue Guest Player"
           >
             <UserPlus size={24} />
           </Button>
@@ -828,7 +828,6 @@ const ModQueueModal: React.FC<{
   setSelectedPlayerId,
   session,
 }) => {
-  // Filter for custom players that are NOT currently in the queue
   const availableCustomPlayers = players.filter((p) => p.isCustom); // Allow re-queuing? Usually no.
   // Check if player is already in queue
   const isPlayerInQueue = (pid: string) =>
@@ -853,7 +852,7 @@ const ModQueueModal: React.FC<{
       onClose={onClose}
       title={
         mode === "SELECT_PLAYER"
-          ? "Select Custom Player"
+          ? "Select Guest"
           : mode === "SELECT_MODE"
             ? `Queue ${selectedPlayerName}`
             : `Select Partner for ${selectedPlayerName}`
@@ -869,7 +868,7 @@ const ModQueueModal: React.FC<{
           <div className="max-h-60 overflow-y-auto space-y-2 no-scrollbar">
             {validCustomPlayers.length === 0 ? (
               <div className="text-center text-slate-500 py-4">
-                No available custom players. Add one in the Players tab.
+                No available guests. Add one in the Players tab.
               </div>
             ) : (
               validCustomPlayers.map((p) => (
@@ -883,7 +882,7 @@ const ModQueueModal: React.FC<{
                 >
                   {p.name}
                   <span className="text-purple-400 text-xs uppercase">
-                    Custom
+                    Guest
                   </span>
                 </button>
               ))
@@ -954,7 +953,7 @@ const ModQueueModal: React.FC<{
                   {p.name}
                   {p.isCustom && (
                     <span className="text-purple-400 text-xs uppercase">
-                      Custom
+                      Guest
                     </span>
                   )}
                 </button>

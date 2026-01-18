@@ -155,7 +155,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
           Mai<span className="text-dreamy-blue">Mai</span>Mai
         </h1>
         <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.15em] opacity-80">
-          Whimsical Arcade Companion
+          A maimai Queueing Service
         </p>
       </div>
 

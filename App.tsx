@@ -78,8 +78,22 @@ export default function App() {
     connectionStatus === ConnectionStatus.CONNECTED || sessionHook.isCreating,
     sendSystemMessage,
   );
-  const { players, myPlayer, addCustomPlayer, removeCustomPlayer } =
+  const { players, myPlayer, addCustomPlayer, removeCustomPlayer, kickStatus } =
     playersHook;
+
+  // Handle detection of being kicked/banned
+  useEffect(() => {
+    if (kickStatus === "banned") {
+      addNotification(
+        "You have been KICKED HARD! Banished to the shadow realm. 🌑",
+        "error",
+      );
+      sessionHook.leaveSession();
+    } else if (kickStatus === "kicked" && !isLeavingRef.current) {
+      addNotification("You have been kicked from this session.", "warning");
+      sessionHook.leaveSession();
+    }
+  }, [kickStatus]);
 
   const myId = myPlayer?.id || "";
 
@@ -145,6 +159,8 @@ export default function App() {
       queueHook.enqueue("PARTNER", playerId, partnerId),
     requestSolo: (playerId: string = myId, playerName: string = myName) =>
       queueHook.requestSolo(playerId, playerName),
+    requestModDemotion: (modId: string) =>
+      queueHook.requestModDemotion(myId, myName, modId),
     leaveQueue: (queueId: string) => queueHook.leaveQueue(queueId, myId),
     removeFromQueue: queueHook.removeFromQueue,
     kickPlayer: queueHook.kickPlayer,
@@ -182,9 +198,11 @@ export default function App() {
     },
     // Mod operations
     transferMod,
+    resignMod: modHook.resignMod,
     // Player operations
     addCustomPlayer,
     removeCustomPlayer,
+    kickSessionPlayer: playersHook.kickSessionPlayer,
   };
 
   const [tab, setTab] = useState<"queue" | "players" | "chat" | "help">(
@@ -434,6 +452,30 @@ export default function App() {
       );
     }
 
+    if (kickStatus === "banned") {
+      return (
+        <div className="w-full h-full bg-black text-white flex flex-col items-center justify-center gap-6 p-8 text-center animate-in fade-in duration-1000">
+          <div className="w-24 h-24 bg-red-900/20 text-red-600 rounded-full flex items-center justify-center animate-pulse border-4 border-red-900/50">
+            <LogOut size={48} />
+          </div>
+          <div className="space-y-4">
+            <h1 className="text-4xl font-black text-red-600 tracking-tighter uppercase shake-animation">
+              BANISHED
+            </h1>
+            <p className="text-slate-400 font-bold max-w-xs leading-relaxed">
+              You have been exiled to the shadow realm. There is no return.
+            </p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-8 px-8 py-3 bg-red-900/20 hover:bg-red-900/40 border border-red-900/50 rounded-2xl text-red-500 font-black uppercase tracking-widest transition-all"
+          >
+            Accept Fate
+          </button>
+        </div>
+      );
+    }
+
     if (connectionStatus === ConnectionStatus.CONNECTING && !sessionName) {
       return (
         <div className="w-full h-full bg-white/20 backdrop-blur-3xl flex flex-col items-center justify-center gap-4">
@@ -626,7 +668,7 @@ export default function App() {
           session.leaveSession();
         }}
         title="Leave the Party?"
-        message="Are you sure you want to exit this whimsical session? You can always find your way back from history!"
+        message="Are you sure you want to exit this session? You can always find your way back from history!"
         confirmText="See ya!"
         variant="danger"
       />

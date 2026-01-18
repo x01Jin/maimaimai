@@ -17,6 +17,11 @@ export interface UseYjsQueueReturn {
   finishTurn: (playerId: string) => void;
   forceFinishTurn: () => void;
   requestSolo: (playerId: string, playerName: string) => void;
+  requestModDemotion: (
+    requesterId: string,
+    requesterName: string,
+    modId: string,
+  ) => void;
   castVote: (voteId: string, playerId: string, approve: boolean) => void;
   modDecision: (
     voteId: string,
@@ -137,7 +142,9 @@ export function useYjsQueue(
           `${playerName} & ${partnerName} joined the queue (Partner)`,
         );
       } else if (type === "MATCH") {
-        sendSystemMessage?.(`${playerName} is looking for a match...`);
+        sendSystemMessage?.(
+          `${playerName} ${playerId !== myPlayerId ? "is looking for a match" : "is looking for a match"}...`,
+        );
       }
 
       const entry: QueueEntry = {
@@ -173,7 +180,7 @@ export function useYjsQueue(
   }, [ydoc, isMod, currentSession, queue, popNextSession]);
 
   const leaveQueue = useCallback(
-    (queueId: string, playerId: string) => {
+    (queueId: string, playerId: string, silent = false) => {
       if (!ydoc) return;
 
       const queueArray = ydoc.getArray<QueueEntry>("queue");
@@ -191,7 +198,7 @@ export function useYjsQueue(
         if (entry.playerIds.length === 1) {
           // Remove entire entry
           queueArray.delete(index, 1);
-          sendSystemMessage?.(`${playerName} left the queue`);
+          if (!silent) sendSystemMessage?.(`${playerName} left the queue`);
         } else {
           // Remove just this player from partner queue
           const updatedEntry: QueueEntry = {
@@ -203,9 +210,10 @@ export function useYjsQueue(
             queueArray.delete(index, 1);
             queueArray.insert(index, [updatedEntry]);
           });
-          sendSystemMessage?.(
-            `${playerName} left the pair, remaining player is matching`,
-          );
+          if (!silent)
+            sendSystemMessage?.(
+              `${playerName} left the pair, remaining player is matching`,
+            );
         }
       }
     },
@@ -234,9 +242,12 @@ export function useYjsQueue(
 
   const kickPlayer = useCallback(
     (queueId: string, playerId: string) => {
-      leaveQueue(queueId, playerId);
+      const playerName =
+        players.find((p) => p.id === playerId)?.name || "Unknown";
+      sendSystemMessage?.(`Mod kicked ${playerName} from the queue`);
+      leaveQueue(queueId, playerId, true);
     },
-    [leaveQueue],
+    [leaveQueue, players, sendSystemMessage],
   );
 
   const reorderQueue = useCallback(
@@ -260,8 +271,10 @@ export function useYjsQueue(
           queueArray.push([entry]);
         }
       });
+
+      sendSystemMessage?.("Mod reordered the queue");
     },
-    [ydoc, isMod],
+    [ydoc, isMod, sendSystemMessage],
   );
 
   const finishTurn = useCallback(
@@ -287,7 +300,7 @@ export function useYjsQueue(
           const finishedNames = current.playerIds
             .map((id) => players.find((p) => p.id === id)?.name || "Unknown")
             .join(" & ");
-          sendSystemMessage?.(`Turn complete: ${finishedNames}`);
+          sendSystemMessage?.(`${finishedNames} finished playing`);
           popNextSession();
         }
       }
@@ -297,8 +310,9 @@ export function useYjsQueue(
 
   const forceFinishTurn = useCallback(() => {
     if (!ydoc || !isMod) return;
+    sendSystemMessage?.("Mod force-cleared the current turn");
     popNextSession();
-  }, [ydoc, isMod, popNextSession]);
+  }, [ydoc, isMod, popNextSession, sendSystemMessage]);
 
   const requestSolo = useCallback(
     (playerId: string, playerName: string) => {
@@ -323,11 +337,44 @@ export function useYjsQueue(
           onlinePlayers.length * GAME_CONFIG.VOTE_THRESHOLD_RATIO,
         ),
         createdAt: Date.now(),
+        type: "SOLO",
       };
 
       sessionMap.set("activeVote", vote);
     },
     [ydoc, players, enqueue],
+  );
+
+  const requestModDemotion = useCallback(
+    (requesterId: string, requesterName: string, modId: string) => {
+      if (!ydoc) return;
+
+      const sessionMap = ydoc.getMap("session");
+      // Check if there is already an active vote
+      if (sessionMap.get("activeVote")) return;
+
+      const onlinePlayers = players.filter((p) => p.isConnected && !p.isCustom);
+      // Demotion requires 50% of ALL players (excluding the mod? usually inclusive or exclusive.
+      // "needs 50% of the players permission". Let's assume inclusive of everyone except maybe the mod themselves don't count?
+      // Actually usually it's just > 50% of room size.
+      // If 4 players, 2 votes needed? Or 3? > 50% implies 3. >= 50% implies 2.
+      // "needs 50%" implies >= 50%.
+
+      const vote: Vote = {
+        id: generateUUID(),
+        requesterId,
+        requesterName,
+        approvals: [requesterId], // Self-approve
+        required: Math.ceil(onlinePlayers.length * 0.5),
+        createdAt: Date.now(),
+        type: "DEMOTE_MOD",
+        targetId: modId,
+      };
+
+      sessionMap.set("activeVote", vote);
+      sendSystemMessage?.(`${requesterName} started a vote to demote the Mod!`);
+    },
+    [ydoc, players, sendSystemMessage],
   );
 
   const castVote = useCallback(
@@ -344,18 +391,51 @@ export function useYjsQueue(
         const updatedVote: Vote = { ...vote, approvals: newApprovals };
 
         if (newApprovals.length >= vote.required) {
-          // Vote passed - add to queue
+          // Vote passed
           ydoc.transact(() => {
             sessionMap.set("activeVote", null);
-            const queueArray = ydoc.getArray<QueueEntry>("queue");
-            queueArray.push([
-              {
-                id: generateUUID(),
-                type: "SOLO",
-                playerIds: [vote.requesterId],
-                timestamp: Date.now(),
-              },
-            ]);
+
+            if (vote.type === "SOLO") {
+              const queueArray = ydoc.getArray<QueueEntry>("queue");
+              queueArray.push([
+                {
+                  id: generateUUID(),
+                  type: "SOLO",
+                  playerIds: [vote.requesterId],
+                  timestamp: Date.now(),
+                },
+              ]);
+              sendSystemMessage?.(
+                `Vote passed! ${vote.requesterName} joined queue.`,
+              );
+            } else if (vote.type === "DEMOTE_MOD") {
+              const modMap = ydoc.getMap("mod");
+              if (modMap.get("modId") === vote.targetId) {
+                // Add to demoted list
+                const demotedMods = ydoc.getArray<string>("demotedMods");
+                if (!demotedMods.toArray().includes(vote.targetId!)) {
+                  demotedMods.push([vote.targetId!]);
+                }
+
+                // Find next eligible mod (oldest, connected, not custom, not the DEMOTED player)
+                const candidates = players
+                  .filter(
+                    (p) =>
+                      !p.isCustom && p.isConnected && p.id !== vote.targetId,
+                  )
+                  .sort((a, b) => a.joinedAt - b.joinedAt);
+
+                if (candidates.length > 0) {
+                  modMap.set("modId", candidates[0].id);
+                  sendSystemMessage?.(
+                    `Vote passed! Mod demoted. New Mod: ${candidates[0].name}`,
+                  );
+                } else {
+                  modMap.set("modId", null);
+                  sendSystemMessage?.(`Vote passed! Mod demoted.`);
+                }
+              }
+            }
           });
         } else {
           sessionMap.set("activeVote", updatedVote);
@@ -392,11 +472,17 @@ export function useYjsQueue(
             },
           ]);
         });
+        sendSystemMessage?.(
+          `Mod approved solo request for ${vote.requesterName}`,
+        );
       } else {
         sessionMap.set("activeVote", null);
+        sendSystemMessage?.(
+          `Mod rejected solo request for ${vote.requesterName}`,
+        );
       }
     },
-    [ydoc, isMod],
+    [ydoc, isMod, sendSystemMessage],
   );
 
   const isInQueue = useCallback(
@@ -426,6 +512,7 @@ export function useYjsQueue(
     finishTurn,
     forceFinishTurn,
     requestSolo,
+    requestModDemotion,
     castVote,
     modDecision,
     isInQueue,

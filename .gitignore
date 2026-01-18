@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 
 # extras
+assets/
 references/
 changelogs/
 information/

@@ -7,6 +7,7 @@ export interface UseYjsModReturn {
   isMod: boolean;
   modPlayer: Player | null;
   transferMod: (targetId: string) => void;
+  resignMod: () => void;
 }
 
 export function useYjsMod(
@@ -68,9 +69,25 @@ export function useYjsMod(
 
       // If no mod assigned, or mod player is missing (voluntary leave)
       if (!currentModId || !modPlayer) {
+        const demotedMods = Array.from(ydoc.getArray<string>("demotedMods"));
         const onlinePlayers = players
-          .filter((p) => p.isConnected && !p.isCustom)
-          .sort((a, b) => a.joinedAt - b.joinedAt);
+          .filter(
+            (p) =>
+              p.isConnected &&
+              !p.isCustom &&
+              !demotedMods.includes(p.id) && // Allow them if they are the ONLY one left? Maybe not.
+              // Logic: If EVERYONE is demoted, someone has to be mod.
+              // But for now, let's just prioritize non-demoted.
+              true,
+          )
+          .sort((a, b) => {
+            // Priority 1: Not demoted
+            const aDemoted = demotedMods.includes(a.id);
+            const bDemoted = demotedMods.includes(b.id);
+            if (aDemoted !== bDemoted) return aDemoted ? 1 : -1;
+            // Priority 2: Join time
+            return a.joinedAt - b.joinedAt;
+          });
 
         if (onlinePlayers.length > 0 && onlinePlayers[0].id === myPlayerId) {
           ydoc.transact(() => {
@@ -90,9 +107,17 @@ export function useYjsMod(
         const now = Date.now();
 
         if (now - lastSeen > gracePeriod) {
+          const demotedMods = Array.from(ydoc.getArray<string>("demotedMods"));
           const onlinePlayers = players
             .filter((p) => p.isConnected && !p.isCustom)
-            .sort((a, b) => a.joinedAt - b.joinedAt);
+            .sort((a, b) => {
+              // Priority 1: Not demoted
+              const aDemoted = demotedMods.includes(a.id);
+              const bDemoted = demotedMods.includes(b.id);
+              if (aDemoted !== bDemoted) return aDemoted ? 1 : -1;
+              // Priority 2: Join time
+              return a.joinedAt - b.joinedAt;
+            });
 
           if (onlinePlayers.length > 0 && onlinePlayers[0].id === myPlayerId) {
             ydoc.transact(() => {
@@ -130,10 +155,37 @@ export function useYjsMod(
     [ydoc, modId, myPlayerId, players, sendSystemMessage],
   );
 
+  const resignMod = useCallback(() => {
+    if (!ydoc || modId !== myPlayerId) return;
+
+    const modMap = ydoc.getMap("mod");
+
+    // Find next eligible mod (oldest, connected, not custom, not me)
+    const candidates = players
+      .filter((p) => !p.isCustom && p.isConnected && p.id !== myPlayerId)
+      .sort((a, b) => a.joinedAt - b.joinedAt);
+
+    if (candidates.length > 0) {
+      const nextMod = candidates[0];
+      modMap.set("modId", nextMod.id);
+      sendSystemMessage?.(
+        `${modPlayer?.name || "Mod"} stepped down. ${nextMod.name} is now Mod.`,
+      );
+    } else {
+      // If no one else is around, just clear it.
+      // The auto-election effect might pick me up again if I'm the only one,
+      // but that's consistent with "someone must be mod".
+      // We'll let the user know they are stuck if they are alone.
+      sendSystemMessage?.(`${modPlayer?.name || "Mod"} stepped down.`);
+      modMap.set("modId", null);
+    }
+  }, [ydoc, modId, myPlayerId, players, sendSystemMessage, modPlayer]);
+
   return {
     modId,
     isMod,
     modPlayer,
     transferMod,
+    resignMod,
   };
 }

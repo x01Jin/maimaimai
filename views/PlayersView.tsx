@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { Button } from "../components/Button";
 import { Modal } from "../components/Modal";
-import { Crown, Users, Trash2, UserPlus } from "lucide-react";
+import { Crown, Users, Trash2, UserPlus, ArrowDown } from "lucide-react";
 import { GameState, Player } from "../types";
 import { SessionAPI } from "../sessionTypes";
 import { ConfirmationModal } from "../components/ConfirmationModal";
+import { KickModal } from "../components/KickModal";
 import { motion, AnimatePresence } from "framer-motion";
+import { useDoubleTap } from "../hooks/useDoubleTap";
 
 interface PlayersViewProps {
   gameState: GameState;
@@ -41,6 +43,17 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
     title: "",
     message: "",
     onConfirm: () => {},
+  });
+
+  // Kick Modal State
+  const [kickModalState, setKickModalState] = useState<{
+    isOpen: boolean;
+    playerId: string;
+    playerName: string;
+  }>({
+    isOpen: false,
+    playerId: "",
+    playerName: "",
   });
 
   const promptConfirm = (
@@ -126,7 +139,7 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
               <div
                 className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg shadow-sm border-2 border-white shrink-0 ${
                   p.isMod
-                    ? "bg-dreamy-yellow text-white"
+                    ? "bg-dreamy-yellow text-slate-800"
                     : p.uuid === session.myUuid
                       ? "bg-dreamy-blue text-white"
                       : "bg-white text-dreamy-slate"
@@ -151,7 +164,7 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
                       </span>
                     )}
                     {p.isMod && (
-                      <span className="px-1.5 py-0.5 bg-dreamy-yellow text-white text-[8px] font-black uppercase rounded shadow-sm">
+                      <span className="px-1.5 py-0.5 bg-dreamy-yellow text-slate-800 text-[8px] font-black uppercase rounded shadow-sm">
                         MOD
                       </span>
                     )}
@@ -185,6 +198,85 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
                     })}
                   </span>
                 )}
+
+                {/* Promote Button (If I am mod, and target is eligible) */}
+                {isMod &&
+                  !p.isMod &&
+                  p.id !== myId &&
+                  !p.isCustom &&
+                  p.isConnected && (
+                    <button
+                      onClick={() => {
+                        promptConfirm(
+                          "Promote to Mod?",
+                          `Pass the crown to ${p.name}?`,
+                          () => session.transferMod(p.id),
+                          "primary",
+                          "Promote",
+                        );
+                      }}
+                      className="w-9 h-9 flex items-center justify-center bg-white/60 hover:bg-dreamy-yellow/20 text-slate-300 hover:text-dreamy-yellow rounded-xl transition-all border border-white"
+                      title="Promote to Mod"
+                    >
+                      <Crown size={16} />
+                    </button>
+                  )}
+
+                {/* Demote Mod Button (If I am NOT mod, target IS mod, IS me or NOT? Demoting implies target is mod. 
+                    So: !isMod && p.isMod && p.id !== myId. 
+                    Actually, p.id !== myId is implied by !isMod & p.isMod? 
+                    Yes, if I am not mod, and p is mod, then p is not me.
+                */}
+                {!isMod && p.isMod && (
+                  <button
+                    onClick={() => {
+                      promptConfirm(
+                        "Vote to Demote?",
+                        `Start a democratic vote to remove ${p.name} as Mod? Requires >50% approval.`,
+                        () => session.requestModDemotion(p.id),
+                        "danger",
+                        "Start Vote",
+                      );
+                    }}
+                    className="w-9 h-9 flex items-center justify-center bg-white/60 hover:bg-red-50 text-red-200 hover:text-red-400 rounded-xl transition-all border border-white"
+                    title="Vote to Demote Mod"
+                  >
+                    <ArrowDown size={16} />
+                  </button>
+                )}
+
+                {/* Kick Button (Mod Only -> Real Players) */}
+                {isMod && !p.isMod && !p.isCustom && p.id !== myId && (
+                  <KickButton
+                    onAction={() =>
+                      setKickModalState({
+                        isOpen: true,
+                        playerId: p.id,
+                        playerName: p.name,
+                      })
+                    }
+                  />
+                )}
+
+                {/* Resign Button (If I am mod and this is me) */}
+                {isMod && p.id === myId && (
+                  <button
+                    onClick={() => {
+                      promptConfirm(
+                        "Step Down?",
+                        "Are you sure you want to resign as Moderator?",
+                        () => session.resignMod(),
+                        "danger",
+                        "Resign",
+                      );
+                    }}
+                    className="w-9 h-9 flex items-center justify-center bg-white/60 hover:bg-amber-50 text-amber-200 hover:text-amber-500 rounded-xl transition-all border border-white"
+                    title="Resign as Mod"
+                  >
+                    <ArrowDown size={16} />
+                  </button>
+                )}
+
                 {isMod && p.isCustom && (
                   <button
                     onClick={() => {
@@ -212,9 +304,9 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
           <Button
             fullWidth
             size="lg"
-            variant="accent"
+            variant="ghost"
             onClick={() => setShowAddPlayer(true)}
-            className="h-12 rounded-2xl bg-dreamy-purple/10 text-dreamy-purple border-white ring-2 ring-white/50"
+            className="h-12 rounded-full bg-white text-dreamy-purple shadow-sm border-transparent"
           >
             <div className="flex items-center justify-center gap-2">
               <UserPlus size={20} />
@@ -280,14 +372,14 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
         footer={
           <div className="flex gap-3 w-full">
             <Button
-              className="flex-1"
+              className="flex-1 rounded-full"
               variant="ghost"
               onClick={() => setShowAddPlayer(false)}
             >
               Cancel
             </Button>
             <Button
-              className="flex-1"
+              className="flex-1 rounded-full"
               variant="primary"
               onClick={() => {
                 if (newPlayerName.trim()) {
@@ -337,6 +429,38 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
         confirmText={confirmModal.confirmText}
         variant={confirmModal.variant}
       />
+
+      <KickModal
+        isOpen={kickModalState.isOpen}
+        onClose={() =>
+          setKickModalState((prev) => ({ ...prev, isOpen: false }))
+        }
+        playerName={kickModalState.playerName}
+        onKick={() => {
+          session.kickSessionPlayer(kickModalState.playerId, false);
+        }}
+        onKickPermanently={() => {
+          session.kickSessionPlayer(kickModalState.playerId, true);
+        }}
+      />
     </div>
+  );
+};
+
+const KickButton: React.FC<{ onAction: () => void }> = ({ onAction }) => {
+  const { isArmed, handleInteraction } = useDoubleTap(onAction);
+
+  return (
+    <button
+      onClick={handleInteraction}
+      className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border border-white ${
+        isArmed
+          ? "bg-red-500 text-white animate-pulse shadow-red-500/50"
+          : "bg-white/60 hover:bg-red-50 text-slate-300 hover:text-red-400"
+      }`}
+      title={isArmed ? "Tap again to open menu" : "Kick Player"}
+    >
+      <Trash2 size={16} />
+    </button>
   );
 };

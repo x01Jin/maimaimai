@@ -30,7 +30,11 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       title={title}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            className="rounded-full flex-1"
+          >
             {cancelText}
           </Button>
           <Button
@@ -45,6 +49,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
               onConfirm();
               onClose();
             }}
+            className="rounded-full flex-1"
           >
             {confirmText}
           </Button>

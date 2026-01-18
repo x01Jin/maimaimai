@@ -47,6 +47,10 @@ export interface Vote {
   required: number;
 
   createdAt: number;
+
+  type: "SOLO" | "DEMOTE_MOD";
+
+  targetId?: string;
 }
 
 export interface ChatMessage {

@@ -37,10 +37,14 @@ export interface SessionAPI {
   removeReaction: (messageId: string, emoji: string) => void;
   // Voting
   castVote: (approve: boolean) => void;
+
   modDecision: (voteId: string, decision: "APPROVE" | "REJECT") => void;
+  requestModDemotion: (modId: string) => void;
   // Mod operations
   transferMod: (targetId: string) => void;
+  resignMod: () => void;
   // Player operations
   addCustomPlayer: (name: string) => string;
   removeCustomPlayer: (playerId: string) => void;
+  kickSessionPlayer: (playerId: string, ban?: boolean) => void;
 }

@@ -53,13 +53,32 @@ export const ChatView: React.FC<ChatViewProps> = ({
   });
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isInitialScrollRef = useRef(true);
   const { activeVote, messages = [] } = gameState || {};
 
-  // Custom scroll-to-bottom that doesn't trigger viewport shifts
+  // Handle scrolling to bottom
   useEffect(() => {
     if (scrollContainerRef.current) {
       const container = scrollContainerRef.current;
-      container.scrollTop = container.scrollHeight;
+
+      if (isInitialScrollRef.current) {
+        // Instant jump for first mount
+        container.style.scrollBehavior = "auto";
+        container.scrollTop = container.scrollHeight;
+        isInitialScrollRef.current = false;
+
+        // Use a small delay to re-enable smooth scrolling for future messages if desired
+        // But for now, let's keep it consistent
+        const timeout = setTimeout(() => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.style.scrollBehavior = "smooth";
+          }
+        }, 50);
+        return () => clearTimeout(timeout);
+      } else {
+        // Smooth scroll for new messages
+        container.scrollTop = container.scrollHeight;
+      }
     }
   }, [messages]);
 
@@ -71,8 +90,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
     const handleResize = () => {
       if (scrollContainerRef.current) {
         const container = scrollContainerRef.current;
-        // Immediate scroll to bottom
+        // Immediate scroll to bottom on keyboard, bypass smooth
+        const originalBehavior = container.style.scrollBehavior;
+        container.style.scrollBehavior = "auto";
         container.scrollTop = container.scrollHeight;
+        container.style.scrollBehavior = originalBehavior;
       }
     };
 
@@ -153,12 +175,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <div className="glass-card rounded-3xl p-3 shadow-xl border-2 border-white flex flex-col gap-2.5">
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 bg-dreamy-yellow/10 rounded-xl flex items-center justify-center text-dreamy-yellow border-2 border-white shadow-sm">
-                    <Zap size={20} />
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 border-white shadow-sm ${activeVote.type === "DEMOTE_MOD" ? "bg-red-100 text-red-500" : "bg-dreamy-yellow/10 text-dreamy-yellow"}`}
+                  >
+                    {activeVote.type === "DEMOTE_MOD" ? (
+                      <Ban size={20} />
+                    ) : (
+                      <Zap size={20} />
+                    )}
                   </div>
                   <div>
                     <div className="text-[10px] font-black uppercase tracking-widest text-dreamy-dark mb-0.5">
-                      Solo Request!
+                      {activeVote.type === "DEMOTE_MOD"
+                        ? "Mod Demotion!"
+                        : "Solo Request!"}
                     </div>
                     <div className="font-black text-dreamy-dark leading-tight">
                       {activeVote.requesterName}
@@ -179,47 +209,61 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </div>
 
               <div className="flex items-stretch gap-2">
-                {!hasVoted && activeVote.requesterId !== myId && (
-                  <button
-                    onClick={() => onVote(true)}
-                    className="flex-1 bg-dreamy-green text-white hover:bg-dreamy-green/90 active:scale-95 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-dreamy-green/20"
-                  >
-                    Approve Vote
-                  </button>
-                )}
+                {!hasVoted &&
+                  (activeVote.type !== "SOLO" ||
+                    activeVote.requesterId !== myId) && (
+                    <button
+                      onClick={() => onVote(true)}
+                      className={`flex-1 text-white hover:opacity-90 active:scale-95 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg ${
+                        activeVote.type === "DEMOTE_MOD"
+                          ? "bg-red-500 shadow-red-500/20"
+                          : "bg-dreamy-green shadow-dreamy-green/20"
+                      }`}
+                    >
+                      {activeVote.type === "DEMOTE_MOD"
+                        ? "Vote to Demote"
+                        : "Approve Vote"}
+                    </button>
+                  )}
 
-                {gameState.players.find((p) => p.id === myId)?.isMod && (
-                  <div className="flex gap-2 flex-1">
-                    <ModDecisionButton
-                      type="APPROVE"
-                      onAction={() =>
-                        setConfirmModal({
-                          isOpen: true,
-                          title: "Force Approve Solo?",
-                          message: `Directly approve ${activeVote.requesterName}'s solo request?`,
-                          onConfirm: () =>
-                            onModDecision(activeVote.id, "APPROVE"),
-                          variant: "primary",
-                          confirmText: "Approve",
-                        })
-                      }
-                    />
-                    <ModDecisionButton
-                      type="REJECT"
-                      onAction={() =>
-                        setConfirmModal({
-                          isOpen: true,
-                          title: "Decline Solo?",
-                          message: `Reject ${activeVote.requesterName}'s request?`,
-                          onConfirm: () =>
-                            onModDecision(activeVote.id, "REJECT"),
-                          variant: "danger",
-                          confirmText: "Reject",
-                        })
-                      }
-                    />
-                  </div>
-                )}
+                {/* Mod can instant-resolve solo requests, but maybe NOT their own demotion? 
+                    Actually, allowing mod to 'approve' their own demotion is basically resigning. 
+                    Allowing them to reject it is vetoing. 
+                    Let's hide mod decision buttons for demotion votes to prevent abuse.
+                */}
+                {gameState.players.find((p) => p.id === myId)?.isMod &&
+                  activeVote.type !== "DEMOTE_MOD" && (
+                    <div className="flex gap-2 flex-1">
+                      <ModDecisionButton
+                        type="APPROVE"
+                        onAction={() =>
+                          setConfirmModal({
+                            isOpen: true,
+                            title: "Force Approve Solo?",
+                            message: `Directly approve ${activeVote.requesterName}'s solo request?`,
+                            onConfirm: () =>
+                              onModDecision(activeVote.id, "APPROVE"),
+                            variant: "primary",
+                            confirmText: "Approve",
+                          })
+                        }
+                      />
+                      <ModDecisionButton
+                        type="REJECT"
+                        onAction={() =>
+                          setConfirmModal({
+                            isOpen: true,
+                            title: "Decline Solo?",
+                            message: `Reject ${activeVote.requesterName}'s request?`,
+                            onConfirm: () =>
+                              onModDecision(activeVote.id, "REJECT"),
+                            variant: "danger",
+                            confirmText: "Reject",
+                          })
+                        }
+                      />
+                    </div>
+                  )}
               </div>
             </div>
           </motion.div>
@@ -241,7 +285,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto px-4 pt-4 pb-5 no-scrollbar scroll-smooth"
+        className="flex-1 overflow-y-auto px-4 pt-4 pb-5 no-scrollbar"
       >
         {activeVote && <div className="h-[120px]"></div>}
 
@@ -304,7 +348,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   <div className="shrink-0 w-10 h-10">
                     {!isCompact ? (
                       <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-base shadow-sm border-2 border-white transition-transform group-hover:scale-105 ${isMe ? "bg-dreamy-blue text-white" : isModNow ? "bg-dreamy-yellow text-white" : "bg-white text-dreamy-slate"}`}
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-base shadow-sm border-2 border-white transition-transform group-hover:scale-105 ${isMe ? "bg-dreamy-blue text-white" : isModNow ? "bg-dreamy-yellow text-slate-800" : "bg-white text-dreamy-slate"}`}
                       >
                         {msg.senderName.charAt(0).toUpperCase()}
                       </div>

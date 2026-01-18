@@ -13,6 +13,9 @@ export interface UseYjsPlayersReturn {
   removeCustomPlayer: (playerId: string) => void;
   getPlayerById: (playerId: string) => Player | undefined;
   getPlayerByUuid: (uuid: string) => Player | undefined;
+  kickSessionPlayer: (playerId: string, ban?: boolean) => void;
+  kickStatus: "none" | "kicked" | "banned";
+  setKickStatus: (status: "none" | "kicked" | "banned") => void;
 }
 
 export function useYjsPlayers(
@@ -24,6 +27,9 @@ export function useYjsPlayers(
 ): UseYjsPlayersReturn {
   const [players, setPlayers] = useState<Player[]>([]);
   const [myPlayerId, setMyPlayerId] = useState<string>("");
+  const [kickStatus, setKickStatus] = useState<"none" | "kicked" | "banned">(
+    "none",
+  );
 
   const prevPlayersRef = useRef<Player[]>([]);
   const hasLoggedJoin = useRef(false);
@@ -33,6 +39,7 @@ export function useYjsPlayers(
     if (!ydoc) return;
 
     const playersMap = ydoc.getMap<Player>("players");
+    const kickedArray = ydoc.getArray<string>("kickedPlayers");
 
     const syncPlayers = () => {
       const playerList: Player[] = [];
@@ -59,12 +66,34 @@ export function useYjsPlayers(
         return a.joinedAt - b.joinedAt;
       });
       setPlayers(playerList);
+
+      // Check kick status
+      const amIBanned = kickedArray.toArray().includes(myUuid);
+      const amIInList = playerList.some((p) => p.uuid === myUuid);
+
+      if (enabled) {
+        if (amIBanned) {
+          setKickStatus("banned");
+        } else if (hasLoggedJoin.current && !amIInList) {
+          // If we had successfully joined previously, but now are gone -> Kicked
+          setKickStatus("kicked");
+        } else {
+          setKickStatus("none");
+        }
+      }
     };
 
     playersMap.observe(syncPlayers);
+    kickedArray.observe(syncPlayers); // Re-run if kicked list changes
     syncPlayers(); // Initial sync
 
     if (enabled) {
+      // Check if kicked
+      const kickedArray = ydoc.getArray<string>("kickedPlayers");
+      if (kickedArray.toArray().includes(myUuid)) {
+        return;
+      }
+
       // Register self using UUID as the key for strict uniqueness
       const existingPlayer = playersMap.get(myUuid);
 
@@ -124,10 +153,17 @@ export function useYjsPlayers(
         const currentId = myPlayerIdRef.current;
         if (!currentId) return;
 
-        const myPlayer = playersMap.get(currentId);
-        if (myPlayer) {
+        const currentPlayer = playersMap.get(currentId);
+
+        if (currentPlayer) {
+          // Check kicked again in heartbeat
+          const kickedArray = ydoc.getArray<string>("kickedPlayers");
+          if (kickedArray.toArray().includes(myUuid)) {
+            return;
+          }
+
           playersMap.set(currentId, {
-            ...myPlayer,
+            ...currentPlayer,
             lastSeen: Date.now(),
             isConnected: true,
           });
@@ -169,11 +205,13 @@ export function useYjsPlayers(
         clearInterval(heartbeat);
         clearInterval(detector);
         playersMap.unobserve(syncPlayers);
+        kickedArray.unobserve(syncPlayers);
       };
     }
 
     return () => {
       playersMap.unobserve(syncPlayers);
+      kickedArray.unobserve(syncPlayers);
     };
   }, [ydoc, myUuid, myName, enabled]);
 
@@ -271,9 +309,10 @@ export function useYjsPlayers(
       };
 
       playersMap.set(id, player);
+      sendSystemMessage?.(`Guest added: ${name}`);
       return id;
     },
-    [ydoc],
+    [ydoc, sendSystemMessage],
   );
 
   const removeCustomPlayer = useCallback(
@@ -285,9 +324,10 @@ export function useYjsPlayers(
 
       if (player?.isCustom) {
         playersMap.delete(playerId);
+        sendSystemMessage?.(`Guest removed: ${player.name}`);
       }
     },
-    [ydoc],
+    [ydoc, sendSystemMessage],
   );
 
   const getPlayerById = useCallback(
@@ -304,6 +344,29 @@ export function useYjsPlayers(
     [players],
   );
 
+  const kickSessionPlayer = useCallback(
+    (playerId: string, ban: boolean = true) => {
+      if (!ydoc) return;
+      const playersMap = ydoc.getMap<Player>("players");
+      const kickedArray = ydoc.getArray<string>("kickedPlayers");
+
+      const player = playersMap.get(playerId);
+      if (player) {
+        // Add to kicked list (by UUID to be persistent) only if banning
+        if (ban && !kickedArray.toArray().includes(player.uuid)) {
+          kickedArray.push([player.uuid]);
+        }
+
+        // Remove from map
+        playersMap.delete(playerId);
+        sendSystemMessage?.(
+          `Mod ${ban ? "banned" : "kicked"} ${player.name} from the session`,
+        );
+      }
+    },
+    [ydoc, sendSystemMessage],
+  );
+
   const myPlayer = players.find((p) => p.id === myPlayerId) || null;
 
   return {
@@ -316,5 +379,8 @@ export function useYjsPlayers(
     removeCustomPlayer,
     getPlayerById,
     getPlayerByUuid,
+    kickSessionPlayer,
+    kickStatus,
+    setKickStatus,
   };
 }
