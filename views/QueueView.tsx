@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useDoubleTap } from "../hooks/useDoubleTap";
 import { Reorder, useDragControls } from "framer-motion";
 import { Button } from "../components/Button";
+import { Modal } from "../components/Modal";
 import { ConfirmationModal } from "../components/ConfirmationModal";
 import {
   Copy,
@@ -233,6 +234,14 @@ export const QueueView: React.FC<QueueViewProps> = ({
 }) => {
   const [showJoinOptions, setShowJoinOptions] = useState(false);
   const [partnerSelectMode, setPartnerSelectMode] = useState(false);
+
+  // Mod Queue State
+  const [showModQueueModal, setShowModQueueModal] = useState(false);
+  const [modSelectedPlayerId, setModSelectedPlayerId] = useState<string>("");
+  const [modQueueMode, setModQueueMode] = useState<
+    "SELECT_PLAYER" | "SELECT_MODE" | "SELECT_PARTNER"
+  >("SELECT_PLAYER");
+
   const { currentSession, queue, players, sessionName, finishApprovals } =
     gameState;
 
@@ -369,6 +378,17 @@ export const QueueView: React.FC<QueueViewProps> = ({
   const isMePlaying = currentSession?.playerIds.includes(myId);
   const haveIApprovedFinish = finishApprovals?.includes(myId);
 
+  const currentSessionPlayers =
+    (currentSession?.playerIds
+      .map((id) => players.find((p) => p.id === id))
+      .filter(Boolean) as Player[]) || [];
+  const customPlayersInSession = currentSessionPlayers.filter(
+    (p) => p.isCustom,
+  );
+  const unfinishedCustomPlayers = customPlayersInSession.filter(
+    (p) => !finishApprovals?.includes(p.id),
+  );
+
   return (
     <div className="flex flex-col h-full relative">
       <div className="p-4 bg-slate-800/50 border-b border-slate-700 flex justify-between items-center shadow-md z-10">
@@ -411,7 +431,7 @@ export const QueueView: React.FC<QueueViewProps> = ({
                 <Play size={64} />
               </div>
               <div className="flex justify-between items-start mb-4 relative z-0">
-                <div className="flex gap-2 text-white font-bold text-lg w-full">
+                <div className="flex gap-2 text-white font-bold text-base w-full">
                   {currentSession.playerIds.map((id: string) => {
                     const p = players.find((pl: any) => pl.id === id);
                     const isDone = finishApprovals?.includes(id);
@@ -435,10 +455,10 @@ export const QueueView: React.FC<QueueViewProps> = ({
                 </div>
               </div>
 
-              <div className="flex gap-2 relative z-0">
+              <div className="flex gap-2 relative z-0 items-stretch">
                 {isMePlaying && (
                   <Button
-                    fullWidth
+                    className="flex-1 px-3 py-2 text-sm h-14"
                     variant={haveIApprovedFinish ? "secondary" : "primary"}
                     onClick={() =>
                       promptConfirm(
@@ -451,23 +471,59 @@ export const QueueView: React.FC<QueueViewProps> = ({
                     }
                     disabled={haveIApprovedFinish}
                   >
-                    {haveIApprovedFinish ? (
-                      <>
-                        <Check size={20} className="mr-2 inline" /> Waiting for
-                        partner...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle size={20} className="mr-2 inline" /> Finish
-                        Turn
-                      </>
-                    )}
+                    <div className="flex flex-col items-center justify-center leading-tight">
+                      <CheckCircle size={18} className="mb-0.5" />
+                      <span className="font-bold">
+                        {haveIApprovedFinish ? "Waiting..." : "Finish Turn"}
+                      </span>
+                    </div>
                   </Button>
                 )}
+
+                {isMod && customPlayersInSession.length > 0 && (
+                  <Button
+                    className="flex-1 px-3 py-2 text-sm h-14"
+                    variant={
+                      unfinishedCustomPlayers.length === 0
+                        ? "secondary"
+                        : "success"
+                    }
+                    onClick={() => {
+                      const names = unfinishedCustomPlayers
+                        .map((p) => p.name)
+                        .join(" & ");
+                      promptConfirm(
+                        "Finish Guest Turn?",
+                        `Are you sure you want to finish the turn for ${names}?`,
+                        () => {
+                          unfinishedCustomPlayers.forEach((p) =>
+                            session.finishTurn(p.id),
+                          );
+                        },
+                        "primary",
+                        "Yes, Finish",
+                      );
+                    }}
+                    disabled={unfinishedCustomPlayers.length === 0}
+                  >
+                    <div className="flex flex-col items-center justify-center leading-tight">
+                      <Check size={18} className="mb-0.5" />
+                      <span className="truncate w-full font-bold">
+                        {unfinishedCustomPlayers.length === 0
+                          ? "Done"
+                          : customPlayersInSession.length > 1
+                            ? "Finish All"
+                            : `Finish ${customPlayersInSession[0].name}`}
+                      </span>
+                    </div>
+                  </Button>
+                )}
+
                 {isMod && (
                   <Button
                     variant="danger"
-                    className="whitespace-nowrap"
+                    size="square"
+                    className="w-14 h-14 shrink-0"
                     onClick={() =>
                       promptConfirm(
                         "Force Finish Turn?",
@@ -477,8 +533,9 @@ export const QueueView: React.FC<QueueViewProps> = ({
                         "Force Finish",
                       )
                     }
+                    title="Force Finish"
                   >
-                    <Ban size={20} />
+                    <Ban size={24} />
                   </Button>
                 )}
               </div>
@@ -642,15 +699,42 @@ export const QueueView: React.FC<QueueViewProps> = ({
         </div>
       )}
 
-      <div className="p-4 bg-slate-800 border-t border-slate-700 sticky bottom-0 z-10">
+      <div className="p-4 bg-slate-800 border-t border-slate-700 sticky bottom-0 z-10 flex gap-2">
+        {isMod && (
+          <Button
+            variant="success"
+            size="square"
+            onClick={() => {
+              setModQueueMode("SELECT_PLAYER");
+              setModSelectedPlayerId("");
+              setShowModQueueModal(true);
+            }}
+            className="w-14 h-14 shrink-0"
+            title="Queue Custom Player"
+          >
+            <Play size={24} className="fill-current" />
+          </Button>
+        )}
         <Button
           fullWidth
           onClick={() => setShowJoinOptions(true)}
-          className="flex items-center justify-center gap-2"
+          className="flex items-center justify-center gap-2 flex-1"
         >
           <Play size={20} className="fill-current" /> Join Queue
         </Button>
       </div>
+
+      <ModQueueModal
+        isOpen={showModQueueModal}
+        onClose={() => setShowModQueueModal(false)}
+        players={players}
+        queue={queue}
+        mode={modQueueMode}
+        setMode={setModQueueMode}
+        selectedPlayerId={modSelectedPlayerId}
+        setSelectedPlayerId={setModSelectedPlayerId}
+        session={session}
+      />
 
       <ConfirmationModal
         isOpen={confirmModal.isOpen}
@@ -662,5 +746,167 @@ export const QueueView: React.FC<QueueViewProps> = ({
         variant={confirmModal.variant}
       />
     </div>
+  );
+};
+
+const ModQueueModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  players: Player[];
+  queue: QueueEntry[];
+  mode: "SELECT_PLAYER" | "SELECT_MODE" | "SELECT_PARTNER";
+  setMode: (mode: "SELECT_PLAYER" | "SELECT_MODE" | "SELECT_PARTNER") => void;
+  selectedPlayerId: string;
+  setSelectedPlayerId: (id: string) => void;
+  session: UsePeerSessionReturn;
+}> = ({
+  isOpen,
+  onClose,
+  players,
+  queue,
+  mode,
+  setMode,
+  selectedPlayerId,
+  setSelectedPlayerId,
+  session,
+}) => {
+  // Filter for custom players that are NOT currently in the queue
+  const availableCustomPlayers = players.filter((p) => p.isCustom); // Allow re-queuing? Usually no.
+  // Check if player is already in queue
+  const isPlayerInQueue = (pid: string) =>
+    queue.some((q) => q.playerIds.includes(pid));
+
+  const validCustomPlayers = availableCustomPlayers.filter(
+    (p) => !isPlayerInQueue(p.id),
+  );
+
+  const selectedPlayerName =
+    players.find((p) => p.id === selectedPlayerId)?.name || "Unknown";
+
+  // For partner selection, can choose ANYONE who is connected/custom and not me (the custom player)
+  const availablePartners = players.filter(
+    (p) =>
+      p.id !== selectedPlayerId &&
+      (p.isConnected || p.isCustom) &&
+      !isPlayerInQueue(p.id),
+  );
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        mode === "SELECT_PLAYER"
+          ? "Select Custom Player"
+          : mode === "SELECT_MODE"
+            ? `Queue ${selectedPlayerName}`
+            : `Select Partner for ${selectedPlayerName}`
+      }
+      footer={
+        <Button variant="ghost" onClick={onClose} fullWidth>
+          Cancel
+        </Button>
+      }
+    >
+      <div className="space-y-3">
+        {mode === "SELECT_PLAYER" && (
+          <div className="max-h-60 overflow-y-auto space-y-2 no-scrollbar">
+            {validCustomPlayers.length === 0 ? (
+              <div className="text-center text-slate-500 py-4">
+                No available custom players. Add one in the Players tab.
+              </div>
+            ) : (
+              validCustomPlayers.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    setSelectedPlayerId(p.id);
+                    setMode("SELECT_MODE");
+                  }}
+                  className="w-full p-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-left font-bold text-white flex justify-between items-center"
+                >
+                  {p.name}
+                  <span className="text-purple-400 text-xs uppercase">
+                    Custom
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+
+        {mode === "SELECT_MODE" && (
+          <div className="space-y-2">
+            <button
+              onClick={() => {
+                session.joinQueueMatch(selectedPlayerId);
+                onClose();
+              }}
+              className="w-full p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/50 hover:bg-cyan-500/20 flex items-center gap-3 transition-colors text-left"
+            >
+              <div className="p-2 bg-cyan-500 rounded-lg text-slate-900">
+                <UserPlus size={20} />
+              </div>
+              <div>
+                <div className="font-bold text-cyan-400">Duo Match</div>
+              </div>
+            </button>
+            <button
+              onClick={() => setMode("SELECT_PARTNER")}
+              className="w-full p-4 rounded-xl bg-pink-500/10 border border-pink-500/50 hover:bg-pink-500/20 flex items-center gap-3 transition-colors text-left"
+            >
+              <div className="p-2 bg-pink-500 rounded-lg text-white">
+                <Users size={20} />
+              </div>
+              <div>
+                <div className="font-bold text-pink-400">With Partner</div>
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                session.requestSolo(selectedPlayerId, selectedPlayerName);
+                onClose();
+              }}
+              className="w-full p-4 rounded-xl bg-orange-500/10 border border-orange-500/50 hover:bg-orange-500/20 flex items-center gap-3 transition-colors text-left"
+            >
+              <div className="p-2 bg-orange-500 rounded-lg text-white">
+                <User size={20} />
+              </div>
+              <div>
+                <div className="font-bold text-orange-400">Solo Play</div>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {mode === "SELECT_PARTNER" && (
+          <div className="max-h-60 overflow-y-auto space-y-2 no-scrollbar">
+            {availablePartners.length === 0 ? (
+              <div className="text-center text-slate-500 py-4">
+                No available partners.
+              </div>
+            ) : (
+              availablePartners.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    session.joinQueuePartner(p.id, selectedPlayerId);
+                    onClose();
+                  }}
+                  className="w-full p-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-left font-bold text-white flex justify-between items-center"
+                >
+                  {p.name}
+                  {p.isCustom && (
+                    <span className="text-purple-400 text-xs uppercase">
+                      Custom
+                    </span>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 };

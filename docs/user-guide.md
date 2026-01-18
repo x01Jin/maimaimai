@@ -71,5 +71,6 @@ The session creator (Mod) has special privileges to manage the room:
 - **Reorder Queue:** Drag and drop queue entries to rearrange the waitlist.
 - **Force Finish:** If a player forgets to tap "Finish Turn," the Mod can advance the queue manually.
 - **Direct Solo Approval:** Mods can immediately approve or reject Solo Play requests via the Chat tab (requires double-tap and confirmation).
-- **Pass Mod Role:** In the Players tab, tap the crown icon next to a player's name to transfer administrative duties.
+- **Pass Mod Role:** In the Players tab, tap the crown icon in the header to open the transfer menu. You can only transfer duties to connected players with their own devices (not custom/guest players).
+- **Custom Players:** Create offline/guest players in the Players tab ("Add Player"). You can then queue them via the square Green Play button in the Queue tab. This is perfect for friends without data or devices.
 - **Session Recovery:** If you accidentally close your browser, you can rejoin using the same code. As long as you were the Mod, the session will be restored from your device's history.

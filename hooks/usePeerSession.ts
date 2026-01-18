@@ -43,15 +43,17 @@ interface UsePeerSessionReturn {
     recoverCode?: string,
   ) => Promise<string>;
   joinSession: (code: string, username: string) => Promise<void>;
-  joinQueueMatch: () => void;
-  joinQueuePartner: (partnerId: string) => void;
-  requestSolo: () => void;
+  joinQueueMatch: (playerId?: string) => void;
+  joinQueuePartner: (partnerId: string, playerId?: string) => void;
+  requestSolo: (playerId?: string, playerName?: string) => void;
   castVote: (approve: boolean) => void;
+  addCustomPlayer: (name: string) => void;
+  removeCustomPlayer: (playerId: string) => void;
   leaveQueue: (queueId: string) => void;
   removeFromQueue: (queueId: string) => void;
   kickPlayer: (queueId: string, playerId: string) => void;
   reorderQueue: (queueIds: string[]) => void;
-  finishTurn: () => void;
+  finishTurn: (playerId?: string) => void;
   forceFinishTurn: () => void;
   sendMessage: (
     content: string,
@@ -503,17 +505,21 @@ export const usePeerSession = (): UsePeerSessionReturn => {
     leaveSession,
     transferMod,
     recoverSession,
-    joinQueueMatch: () =>
-      sendAction({ type: "JOIN_QUEUE_MATCH", payload: { playerId: myId } }),
-    joinQueuePartner: (partnerId) =>
+    addCustomPlayer: (name) =>
+      sendAction({ type: "ADD_CUSTOM_PLAYER", payload: { name } }),
+    removeCustomPlayer: (playerId) =>
+      sendAction({ type: "REMOVE_CUSTOM_PLAYER", payload: { playerId } }),
+    joinQueueMatch: (playerId = myId) =>
+      sendAction({ type: "JOIN_QUEUE_MATCH", payload: { playerId } }),
+    joinQueuePartner: (partnerId, playerId = myId) =>
       sendAction({
         type: "JOIN_QUEUE_PARTNER",
-        payload: { playerId: myId, partnerId },
+        payload: { playerId, partnerId },
       }),
-    requestSolo: () =>
+    requestSolo: (playerId = myId, playerName = getIdentity().name) =>
       sendAction({
         type: "REQUEST_SOLO",
-        payload: { playerId: myId, playerName: getIdentity().name },
+        payload: { playerId, playerName },
       }),
     castVote: (approve) =>
       gameState.activeVote &&
@@ -529,11 +535,11 @@ export const usePeerSession = (): UsePeerSessionReturn => {
       sendAction({ type: "KICK_PLAYER", payload: { playerId, queueId } }),
     reorderQueue: (queueIds) =>
       sendAction({ type: "REORDER_QUEUE", payload: { queueIds } }),
-    finishTurn: () =>
+    finishTurn: (playerId = myId) =>
       gameState.currentSession &&
       sendAction({
         type: "FINISH_TURN",
-        payload: { sessionId: gameState.currentSession.id, playerId: myId },
+        payload: { sessionId: gameState.currentSession.id, playerId },
       }),
     forceFinishTurn: () =>
       gameState.currentSession &&

@@ -159,6 +159,10 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
                 <li>Reorder the queue by dragging items.</li>
                 <li>Remove players or entire groups from the queue.</li>
                 <li>Force finish a turn if players forget to end it.</li>
+                <li>
+                  Add and Queue <strong>Custom Players</strong> who don't have a
+                  device.
+                </li>
               </ul>
             </div>
           </div>
@@ -185,6 +189,19 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
                     A glowing green dot indicates the player is online and
                     connected. Offline players are greyed out but remain in the
                     list for history.
+                  </p>
+                </div>
+              </li>
+              <li className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-500 flex-shrink-0">
+                  <span className="font-bold text-xs">OFF</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-white">Custom Players</h4>
+                  <p className="text-slate-400 text-sm">
+                    Mods can create "Custom Players" for people without devices.
+                    They appear with a purple label and their specific queue
+                    actions are managed by the Mod.
                   </p>
                 </div>
               </li>

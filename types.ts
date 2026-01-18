@@ -19,6 +19,8 @@ export interface Player {
     packetLoss: number;
     score: number;
   };
+
+  isCustom?: boolean; // If true, this is a mod-created temporary player
 }
 
 export type QueueType = "SOLO" | "MATCH" | "PARTNER";
@@ -160,7 +162,9 @@ export type ClientAction =
         modName: string;
       };
     }
-  | { type: "TRANSFER_MOD"; payload: { targetId: string } };
+  | { type: "TRANSFER_MOD"; payload: { targetId: string } }
+  | { type: "ADD_CUSTOM_PLAYER"; payload: { name: string } }
+  | { type: "REMOVE_CUSTOM_PLAYER"; payload: { playerId: string } };
 
 // Internal P2P Protocol Messages
 

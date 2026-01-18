@@ -396,14 +396,14 @@ export const sessionUtils = (
       const newApprovals = [
         ...new Set([...nextState.finishApprovals, action.payload.playerId]),
       ];
-      const activePlayers = nextState.currentSession.playerIds.filter(
+      const playersNeedingApproval = nextState.currentSession.playerIds.filter(
         (id) => nextState.players.find((p) => p.id === id)?.isConnected,
       );
-      const allApproved = activePlayers.every((id) =>
+      const allApproved = playersNeedingApproval.every((id) =>
         newApprovals.includes(id),
       );
 
-      if (allApproved || activePlayers.length === 0) {
+      if (allApproved || playersNeedingApproval.length === 0) {
         const names = nextState.currentSession.playerIds
           .map(
             (id) =>
@@ -643,6 +643,74 @@ export const sessionUtils = (
           ],
         };
       }
+    }
+
+    case "ADD_CUSTOM_PLAYER": {
+      const { name } = action.payload;
+      const newUuid = generateUUID();
+      const newId = `custom-${newUuid}`;
+      const newPlayer: Player = {
+        id: newId,
+        uuid: newUuid,
+        name: `${name}`,
+        isMod: false,
+        isConnected: true, // Custom players are always "online"
+        isCustom: true,
+        joinedAt: Date.now(),
+        lastSeen: Date.now(),
+      };
+
+      return {
+        ...nextState,
+        players: [...nextState.players, newPlayer],
+        messages: [
+          ...nextState.messages,
+          createSystemMessage(`Mod added custom player: ${name}`),
+        ],
+      };
+    }
+
+    case "REMOVE_CUSTOM_PLAYER": {
+      const { playerId } = action.payload;
+      const playerToRemove = nextState.players.find((p) => p.id === playerId);
+      const name = playerToRemove?.name || "Unknown";
+
+      // Cleanup: Remove from Queue
+      let newQueue = nextState.queue.filter(
+        (q) => !q.playerIds.includes(playerId),
+      );
+
+      // Cleanup: Finish session if they are playing?
+      let currentSession = nextState.currentSession;
+      if (currentSession && currentSession.playerIds.includes(playerId)) {
+        // Auto-finish turn if custom player is removed while playing
+        currentSession = null;
+      }
+
+      // Cleanup: Remove from active vote
+      let activeVote = nextState.activeVote;
+      if (activeVote) {
+        if (activeVote.requesterId === playerId) {
+          activeVote = null;
+        } else {
+          activeVote = {
+            ...activeVote,
+            approvals: activeVote.approvals.filter((id) => id !== playerId),
+          };
+        }
+      }
+
+      return {
+        ...nextState,
+        players: nextState.players.filter((p) => p.id !== playerId),
+        queue: newQueue,
+        currentSession,
+        activeVote,
+        messages: [
+          ...nextState.messages,
+          createSystemMessage(`Mod removed custom player: ${name}`),
+        ],
+      };
     }
 
     case "TRANSFER_MOD": {
