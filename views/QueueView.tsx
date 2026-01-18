@@ -19,6 +19,7 @@ import {
   User,
   Ban,
 } from "lucide-react";
+import logo from "../assets/logo.png";
 import { GameState, QueueEntry, Player } from "../types";
 import { UsePeerSessionReturn } from "../hooks/usePeerSession";
 import { NETWORK_CONFIG } from "../constants";
@@ -392,18 +393,23 @@ export const QueueView: React.FC<QueueViewProps> = ({
   return (
     <div className="flex flex-col h-full relative">
       <div className="p-4 bg-slate-800/50 border-b border-slate-700 flex justify-between items-center shadow-md z-10">
-        <div>
-          <h2 className="font-bold text-lg text-white">MaiMaiMai</h2>
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span>
-              Code:{" "}
-              <span className="font-mono text-cyan-400 font-bold text-base">
-                {sessionName}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-cyan-400/20 to-pink-500/20 rounded-xl flex items-center justify-center border border-white/5 overflow-hidden">
+            <img src={logo} alt="Logo" className="w-8 h-8 object-contain" />
+          </div>
+          <div>
+            <h2 className="font-bold text-lg text-white">MaiMaiMai</h2>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <span>
+                Code:{" "}
+                <span className="font-mono text-cyan-400 font-bold text-base">
+                  {sessionName}
+                </span>
               </span>
-            </span>
-            <button onClick={copyCode} className="p-1 hover:text-white">
-              <Copy size={12} />
-            </button>
+              <button onClick={copyCode} className="p-1 hover:text-white">
+                <Copy size={12} />
+              </button>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-4">

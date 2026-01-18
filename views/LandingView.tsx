@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
-import { Users, Clock, Trash2, CloudLightning, Crown } from "lucide-react";
+import { Clock, Trash2, CloudLightning, Crown } from "lucide-react";
+import logo from "../assets/logo.png";
 import {
   getIdentity,
   getRecentSessions,
@@ -99,14 +100,19 @@ export const LandingView: React.FC<LandingViewProps> = ({
     <div className="flex flex-col h-full p-6 justify-center gap-8 animate-in fade-in zoom-in-95 duration-500 overflow-y-auto">
       <div className="text-center space-y-2 pt-4">
         <div className="flex justify-center mb-4">
-          <div className="w-20 h-20 bg-gradient-to-br from-cyan-400 to-pink-500 rounded-full flex items-center justify-center shadow-xl shadow-pink-500/20">
-            <Users className="w-10 h-10 text-white" />
+          <div className="w-24 h-24 bg-gradient-to-br from-cyan-400/20 to-pink-500/20 rounded-3xl flex items-center justify-center shadow-2xl shadow-cyan-500/10 border border-white/10 group overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent z-10" />
+            <img
+              src={logo}
+              alt="Logo"
+              className="w-20 h-20 object-contain relative z-20 group-hover:scale-110 transition-transform duration-500"
+            />
           </div>
         </div>
         <h1 className="text-4xl font-black text-white tracking-tight">
           Mai<span className="text-cyan-400">Mai</span>Mai
         </h1>
-        <p className="text-slate-400 text-lg">A mamai queueing webapp</p>
+        <p className="text-slate-400 text-lg">A mamai queueing service</p>
       </div>
 
       <div className="space-y-4 w-full">
