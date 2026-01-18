@@ -14,6 +14,9 @@ import {
   saveHostState,
   generateUUID,
   saveIdentity,
+  setActiveSession,
+  getActiveSession,
+  clearActiveSession,
 } from "../utils/storage";
 import {
   INITIAL_STATE,
@@ -109,6 +112,23 @@ export const usePeerSession = (): UsePeerSessionReturn => {
       saveHostState(gameState.sessionName, gameState);
     }
   }, [gameState, myId]);
+
+  // Auto-recovery
+  useEffect(() => {
+    const activeSessionCode = getActiveSession();
+    // Only attempt recovery if we are IDLE and have a stored session code
+    if (activeSessionCode && status === ConnectionStatus.IDLE) {
+      const identity = getIdentity();
+      if (identity.name) {
+        logger.log(`Attempting to auto-recover session: ${activeSessionCode}`);
+        recoverSession(activeSessionCode, identity.name).catch((err) => {
+          console.error("Auto-recovery failed:", err);
+          clearActiveSession(); // Clear if recovery fails
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount
 
   // 1. Connection Management
   const {
@@ -426,7 +446,10 @@ export const usePeerSession = (): UsePeerSessionReturn => {
         // If timeout, assume beacon is dead and host it
         lifecycle
           .createSession(username, undefined, code)
-          .then(() => resolve())
+          .then((c) => {
+            setActiveSession(c);
+            resolve();
+          })
           .catch(reject);
       }, 3000);
 
@@ -444,7 +467,10 @@ export const usePeerSession = (): UsePeerSessionReturn => {
             tempPeer.destroy();
             lifecycle
               .createSession(username, undefined, code)
-              .then(() => resolve())
+              .then((c) => {
+                setActiveSession(c);
+                resolve();
+              })
               .catch(reject);
           }
         };
@@ -455,7 +481,13 @@ export const usePeerSession = (): UsePeerSessionReturn => {
           tempPeer.off("error", errorHandler);
           tempPeer.destroy();
           // Beacon is alive, join instead
-          lifecycle.joinSession(code, username).then(resolve).catch(reject);
+          lifecycle
+            .joinSession(code, username)
+            .then(() => {
+              setActiveSession(code);
+              resolve();
+            })
+            .catch(reject);
         });
 
         conn.on("error", () => {
@@ -465,7 +497,10 @@ export const usePeerSession = (): UsePeerSessionReturn => {
           // Beacon unavailable or error, host it
           lifecycle
             .createSession(username, undefined, code)
-            .then(() => resolve())
+            .then((c) => {
+              setActiveSession(c);
+              resolve();
+            })
             .catch(reject);
         });
       });
@@ -477,7 +512,10 @@ export const usePeerSession = (): UsePeerSessionReturn => {
           tempPeer.destroy();
           lifecycle
             .createSession(username, undefined, code)
-            .then(() => resolve())
+            .then((c) => {
+              setActiveSession(c);
+              resolve();
+            })
             .catch(reject);
         }
       });
@@ -486,6 +524,7 @@ export const usePeerSession = (): UsePeerSessionReturn => {
 
   // Public Methods
   const leaveSession = () => {
+    clearActiveSession();
     const iAmMod = gameState.players.find((p) => p.id === myId)?.isMod;
     if (iAmMod && gameState.players.length > 1) {
       electNewMod();
@@ -499,8 +538,19 @@ export const usePeerSession = (): UsePeerSessionReturn => {
     gameState,
     myId,
     myUuid,
-    createSession: lifecycle.createSession,
-    joinSession: lifecycle.joinSession,
+    createSession: async (username, existingState, recoverCode) => {
+      const code = await lifecycle.createSession(
+        username,
+        existingState,
+        recoverCode,
+      );
+      setActiveSession(code);
+      return code;
+    },
+    joinSession: async (code, username) => {
+      await lifecycle.joinSession(code, username);
+      setActiveSession(code);
+    },
     disconnect: lifecycle.disconnect,
     leaveSession,
     transferMod,

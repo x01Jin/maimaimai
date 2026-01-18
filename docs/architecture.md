@@ -61,9 +61,10 @@ State is managed as a single immutable `GameState` object.
 
 The current Mod automatically saves the `GameState` to `localStorage` on every update.
 
-- **Smart Session Recovery:** If the Mod's browser refreshes, they can use the "Resume Session" feature. The system creates a temporary peer to probe the Beacon:
+- **Smart Session Recovery (Host):** If the Mod's browser refreshes, they can use the "Resume Session" feature. The system creates a temporary peer to probe the Beacon:
   - If the Beacon is **Unresponsive**: The original Mod resumes the role, restoring state from `localStorage` and re-broadcasting.
   - If the Beacon is **Active**: It means another player was elected Mod while the host was gone. The original Mod automatically joins as a regular player instead of fighting for the Beacon ID.
+- **Client Auto-Recovery:** All participants (not just the Mod) persist the active session code in `localStorage`. If the page is refreshed or the browser restarts, the application automatically attempts to rejoin the active session by reconnecting to the Beacon, ensuring seamless continuity.
 - **Migrated Mod Recovery:** If a player is elected as Mod, they begin saving the state locally to provide future recovery if the session is left to them.
 
 ---

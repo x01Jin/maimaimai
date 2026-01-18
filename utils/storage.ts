@@ -113,3 +113,16 @@ export const loadHostState = (code: string): GameState | null => {
 export const clearHostState = (code: string) => {
   localStorage.removeItem(STORAGE_CONFIG.HOST_STATE_KEY_PREFIX + code);
 };
+
+// Active Session Persistence
+export const setActiveSession = (code: string) => {
+  localStorage.setItem(STORAGE_CONFIG.ACTIVE_SESSION_KEY, code);
+};
+
+export const getActiveSession = (): string | null => {
+  return localStorage.getItem(STORAGE_CONFIG.ACTIVE_SESSION_KEY);
+};
+
+export const clearActiveSession = () => {
+  localStorage.removeItem(STORAGE_CONFIG.ACTIVE_SESSION_KEY);
+};

@@ -42,6 +42,7 @@ export const STORAGE_CONFIG = {
   IDENTITY_KEY: "maimaimai_identity",
   HISTORY_KEY: "maimaimai_history",
   HOST_STATE_KEY_PREFIX: "maimaimai_host_state_",
+  ACTIVE_SESSION_KEY: "maimaimai_active_session",
 } as const;
 
 // Game Configuration

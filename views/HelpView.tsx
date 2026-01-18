@@ -23,7 +23,7 @@ type HelpSection = "general" | "queue" | "players" | "chat" | "about";
 
 export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
   const [activeSection, setActiveSection] = useState<HelpSection>("general");
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const sections: { id: HelpSection; label: string; icon: React.ReactNode }[] =
     [
@@ -138,16 +138,14 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                <h4 className="font-bold text-white mb-2 flex items-center gap-2">
-                  <ListOrdered size={16} className="text-cyan-400" /> Up Next
-                </h4>
-                <p className="text-slate-400 text-sm">
-                  Shows the ordered list of players waiting for their turn. You
-                  can verify your position here.
-                </p>
-              </div>
+            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+              <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                <ListOrdered size={16} className="text-cyan-400" /> Up Next
+              </h4>
+              <p className="text-slate-400 text-sm">
+                Shows the ordered list of players waiting for their turn. You
+                can verify your position here.
+              </p>
             </div>
 
             <div className="bg-yellow-500/10 p-4 rounded-xl border border-yellow-500/20">
@@ -199,9 +197,9 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
                 <div>
                   <h4 className="font-bold text-white">Custom Players</h4>
                   <p className="text-slate-400 text-sm">
-                    Mods can create "Custom Players" for people without devices.
-                    They appear with a purple label and their specific queue
-                    actions are managed by the Mod.
+                    Mods can create "Custom Players" for people without
+                    devices/internet connection. They appear with a purple label
+                    and their specific queue actions are managed by the Mod.
                   </p>
                 </div>
               </li>
@@ -328,12 +326,12 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
 
   return (
     <div className="flex bg-slate-900 h-full relative overflow-hidden">
-      {/* Mobile Sidebar Toggle - Visible only on small screens */}
-      {!isMobileMenuOpen && (
-        <div className="md:hidden absolute top-4 right-4 z-50">
+      {/* Sidebar Toggle - Visible when sidebar is closed */}
+      {!isSidebarOpen && (
+        <div className="absolute top-4 right-4 z-50">
           <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 bg-slate-800 text-white rounded-full shadow-lg border border-slate-700"
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 bg-slate-800/80 hover:bg-slate-700 text-white rounded-full shadow-lg border border-slate-700 backdrop-blur-sm transition-all active:scale-95"
           >
             <Menu size={20} />
           </button>
@@ -342,16 +340,16 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
 
       {/* Main Content Area */}
       <div
-        className={`flex-1 overflow-y-auto no-scrollbar p-6 pb-24 md:pb-6 transition-all duration-300 ${isMobileMenuOpen ? "blur-sm" : ""}`}
+        className={`flex-1 overflow-y-auto no-scrollbar p-6 pb-24 transition-all duration-300 ${isSidebarOpen ? "blur-sm" : ""}`}
       >
         {renderContent()}
       </div>
 
-      {/* Mobile Content Overlay & Blur Trigger */}
-      {isMobileMenuOpen && (
+      {/* Content Overlay & Blur Trigger */}
+      {isSidebarOpen && (
         <div
-          className="md:hidden absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] z-30 transition-all duration-300"
-          onClick={() => setIsMobileMenuOpen(false)}
+          className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] z-30 transition-all duration-300"
+          onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
@@ -359,15 +357,20 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
       <div
         className={`
         absolute inset-y-0 right-0 z-40 bg-slate-800 border-l border-slate-700 shadow-2xl transition-all duration-300 ease-in-out
-        md:relative md:transform-none md:w-48 md:translate-x-0
-        ${isMobileMenuOpen ? "w-64 translate-x-0" : "w-0 translate-x-full overflow-hidden"}
+        ${isSidebarOpen ? "w-64 translate-x-0" : "w-0 translate-x-full overflow-hidden"}
       `}
       >
         <div className="flex flex-col h-full p-4">
-          <div className="mb-4 px-2">
+          <div className="flex items-center justify-between mb-4 px-2">
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Help & Info
             </h2>
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="p-1.5 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors"
+            >
+              <X size={16} />
+            </button>
           </div>
           <nav className="space-y-1">
             {sections.map((section) => (
@@ -375,7 +378,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
                 key={section.id}
                 onClick={() => {
                   setActiveSection(section.id);
-                  setIsMobileMenuOpen(false);
+                  setIsSidebarOpen(false);
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-medium transition-all ${
                   activeSection === section.id
