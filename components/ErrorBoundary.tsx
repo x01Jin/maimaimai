@@ -46,7 +46,7 @@ export class ErrorBoundary extends Component<
             onClick={() => window.location.reload()}
             className="px-8 py-4 bg-dreamy-blue text-white rounded-2xl font-black shadow-lg shadow-dreamy-blue/20 active:scale-95 transition-all text-sm uppercase tracking-widest"
           >
-            Refresh App
+            Refresh Service
           </button>
         </div>
       );

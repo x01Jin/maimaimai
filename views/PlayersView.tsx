@@ -3,14 +3,14 @@ import { Button } from "../components/Button";
 import { Modal } from "../components/Modal";
 import { Crown, Users, Trash2, Plus, UserPlus } from "lucide-react";
 import { GameState, Player } from "../types";
-import { UsePeerSessionReturn } from "../hooks/usePeerSession";
+import { SessionAPI } from "../sessionTypes";
 import { ConfirmationModal } from "../components/ConfirmationModal";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface PlayersViewProps {
   gameState: GameState;
   myId: string;
-  session: UsePeerSessionReturn;
+  session: SessionAPI;
   isMod: boolean;
 }
 
@@ -116,7 +116,7 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
               style={{ willChange: "transform, opacity" }}
-              key={p.uuid}
+              key={p.id}
               className={`relative flex items-center gap-3 p-3 rounded-2xl border-2 transition-all ${
                 p.isConnected
                   ? "bg-white/90 border-white shadow-sm"

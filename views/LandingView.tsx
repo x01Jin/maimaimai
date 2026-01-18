@@ -15,7 +15,6 @@ import {
   getRecentSessions,
   removeRecentSession,
   RecentSession,
-  loadHostState,
 } from "../utils/storage";
 
 interface LandingViewProps {
@@ -184,20 +183,13 @@ export const LandingView: React.FC<LandingViewProps> = ({
               size="lg"
               className="bg-dreamy-yellow text-dreamy-dark border-b-4 border-yellow-400 shadow-md shadow-yellow-200"
               onClick={() => {
-                if (loadHostState(lastSession.code)) {
-                  onRecoverSession(lastSession.code, name);
-                } else {
-                  onJoin(lastSession.code, name);
-                }
+                onRecoverSession(lastSession.code, name);
               }}
               disabled={!name.trim() || isConnecting}
             >
               <div className="flex items-center justify-center gap-2">
                 <CloudLightning size={20} className="text-orange-400" />
-                <span>
-                  {loadHostState(lastSession.code) ? "Resume" : "Rejoin"} (
-                  {lastSession.code})
-                </span>
+                <span>Rejoin ({lastSession.code})</span>
               </div>
             </Button>
           )}
@@ -243,11 +235,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
                 >
                   <button
                     onClick={() => {
-                      if (loadHostState(h.code)) {
-                        onRecoverSession(h.code, name);
-                      } else {
-                        onJoin(h.code, name);
-                      }
+                      onRecoverSession(h.code, name);
                     }}
                     disabled={!name.trim()}
                     className="flex-1 glass-card hover:bg-white p-3 rounded-2xl flex justify-between items-center text-left border-2 border-white/80 transition-all group active:scale-[0.98]"
@@ -256,17 +244,6 @@ export const LandingView: React.FC<LandingViewProps> = ({
                       <span className="font-mono font-black text-lg text-dreamy-purple group-hover:text-dreamy-dark transition-colors">
                         {h.code}
                       </span>
-                      {loadHostState(h.code) && (
-                        <div className="flex items-center gap-1">
-                          <Crown
-                            size={12}
-                            className="text-amber-500 fill-amber-500"
-                          />
-                          <span className="text-[10px] text-amber-600 font-black uppercase tracking-widest">
-                            Host
-                          </span>
-                        </div>
-                      )}
                     </div>
                     <span className="text-[9px] font-black text-slate-500 bg-white/50 px-2.5 py-0.5 rounded-full border border-white">
                       {new Date(h.lastJoined).toLocaleDateString()}

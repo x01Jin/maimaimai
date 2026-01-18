@@ -21,13 +21,14 @@ import {
 } from "lucide-react";
 import logo from "../assets/logo.png";
 import { GameState, QueueEntry, Player } from "../types";
-import { UsePeerSessionReturn } from "../hooks/usePeerSession";
-import { NETWORK_CONFIG } from "../constants";
+import { SessionAPI } from "../sessionTypes";
+
+const REORDER_DEBOUNCE_MS = 500;
 
 interface QueueViewProps {
   gameState: GameState;
   myId: string;
-  session: UsePeerSessionReturn;
+  session: SessionAPI;
   isMod: boolean;
   addNotification: (
     message: string,
@@ -42,7 +43,7 @@ interface QueueItemProps {
   players: Player[];
   myId: string;
   isMod: boolean;
-  session: UsePeerSessionReturn;
+  session: SessionAPI;
   promptConfirm: (
     title: string,
     message: string,
@@ -311,7 +312,7 @@ export const QueueView: React.FC<QueueViewProps> = ({
 
       reorderTimeoutRef.current = setTimeout(() => {
         session.reorderQueue(newOrder.map((q: QueueEntry) => q.id));
-      }, NETWORK_CONFIG.REORDER_DEBOUNCE_MS);
+      }, REORDER_DEBOUNCE_MS);
     }
   };
 
@@ -815,7 +816,7 @@ const ModQueueModal: React.FC<{
   setMode: (mode: "SELECT_PLAYER" | "SELECT_MODE" | "SELECT_PARTNER") => void;
   selectedPlayerId: string;
   setSelectedPlayerId: (id: string) => void;
-  session: UsePeerSessionReturn;
+  session: SessionAPI;
 }> = ({
   isOpen,
   onClose,

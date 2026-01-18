@@ -1,9 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
-import { usePeerSession } from "./hooks/usePeerSession";
+import {
+  useYjsSession,
+  useYjsPlayers,
+  useYjsQueue,
+  useYjsChat,
+  useYjsMod,
+} from "./hooks/yjs";
 import { useDoubleTap } from "./hooks/useDoubleTap";
-import { ConnectionStatus, AppNotification } from "./types";
+import { ConnectionStatus, AppNotification, GameState } from "./types";
 import { ToastContainer, ConfirmationModal } from "./components";
-import { generateUUID } from "./utils";
+import { generateUUID, getIdentity } from "./utils/storage";
 import {
   Users,
   LogOut,
@@ -48,7 +54,132 @@ const LeaveButton: React.FC<{ onLeave: () => void }> = ({ onLeave }) => {
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 export default function App() {
-  const session = usePeerSession();
+  // Y.js hooks
+  const sessionHook = useYjsSession();
+  const {
+    ydoc,
+    provider,
+    connectionStatus,
+    sessionCode,
+    sessionName,
+    myUuid,
+    myClientId,
+  } = sessionHook;
+
+  const [myName, setMyName] = useState(() => getIdentity().name || "");
+
+  const playersHook = useYjsPlayers(
+    ydoc,
+    myUuid,
+    myName,
+    connectionStatus === ConnectionStatus.CONNECTED || sessionHook.isCreating,
+  );
+  const { players, myPlayer, addCustomPlayer, removeCustomPlayer } =
+    playersHook;
+
+  const myId = myPlayer?.id || "";
+
+  const chatHook = useYjsChat(ydoc);
+  const { messages, sendSystemMessage } = chatHook;
+
+  const modHook = useYjsMod(ydoc, myId, players, sendSystemMessage);
+  const { isMod, transferMod } = modHook;
+
+  const queueHook = useYjsQueue(ydoc, players, myId, isMod, sendSystemMessage);
+  const { queue, currentSession, finishApprovals, activeVote } = queueHook;
+
+  // Build GameState for compatibility with views
+  const gameState: GameState = {
+    // Inject correct isMod status from the mod hook
+    players: players.map((p) => ({
+      ...p,
+      isMod: p.id === modHook.modId,
+    })),
+    queue,
+    currentSession,
+    finishApprovals,
+    messages,
+    sessionName: sessionName || sessionCode,
+    activeVote,
+    version: 0,
+    servicePeers: [],
+    stateHash: "",
+  };
+
+  // Build session object for compatibility with views
+  const session = {
+    status: connectionStatus,
+    isMod,
+    gameState,
+    myId,
+    myUuid,
+    createSession: (
+      name: string,
+      _existingState?: GameState,
+      code?: string,
+    ) => {
+      setMyName(name);
+      sessionHook.createSession(name, code);
+    },
+    joinSession: (code: string, name: string) => {
+      setMyName(name);
+      sessionHook.joinSession(code, name);
+    },
+    recoverSession: async (code: string, name: string) => {
+      setMyName(name);
+      await sessionHook.recoverSession(code, name);
+    },
+    leaveSession: sessionHook.leaveSession,
+    error: sessionHook.error,
+    // Queue operations
+    joinQueueMatch: (playerId: string = myId) =>
+      queueHook.enqueue("MATCH", playerId),
+    joinQueuePartner: (partnerId: string, playerId: string = myId) =>
+      queueHook.enqueue("PARTNER", playerId, partnerId),
+    requestSolo: (playerId: string = myId, playerName: string = myName) =>
+      queueHook.requestSolo(playerId, playerName),
+    leaveQueue: (queueId: string) => queueHook.leaveQueue(queueId, myId),
+    removeFromQueue: queueHook.removeFromQueue,
+    kickPlayer: queueHook.kickPlayer,
+    reorderQueue: queueHook.reorderQueue,
+    finishTurn: (playerId: string = myId) => queueHook.finishTurn(playerId),
+    forceFinishTurn: queueHook.forceFinishTurn,
+    // Chat operations
+    sendMessage: (
+      content: string,
+      replyToId?: string,
+      type: "text" | "image" | "gif" = "text",
+      metadata?: any,
+    ) =>
+      chatHook.sendMessage(
+        content,
+        myId,
+        myUuid,
+        myName,
+        replyToId,
+        type,
+        metadata,
+      ),
+    addReaction: (messageId: string, emoji: string) =>
+      chatHook.addReaction(messageId, myId, emoji),
+    removeReaction: (messageId: string, emoji: string) =>
+      chatHook.removeReaction(messageId, myId, emoji),
+    // Voting
+    castVote: (approve: boolean) => {
+      if (activeVote) {
+        queueHook.castVote(activeVote.id, myId, approve);
+      }
+    },
+    modDecision: (voteId: string, decision: "APPROVE" | "REJECT") => {
+      queueHook.modDecision(voteId, decision, myId, myName);
+    },
+    // Mod operations
+    transferMod,
+    // Player operations
+    addCustomPlayer,
+    removeCustomPlayer,
+  };
+
   const [tab, setTab] = useState<"queue" | "players" | "chat" | "help">(
     "queue",
   );
@@ -158,31 +289,22 @@ export default function App() {
 
   // 1. Connection Status Toast
   useEffect(() => {
-    if (
-      session.status === ConnectionStatus.MIGRATING ||
-      session.status === ConnectionStatus.RECONNECTING
-    ) {
-      // Add sticky notification if not already present
-      const isReconnecting = session.status === ConnectionStatus.RECONNECTING;
+    if (connectionStatus === ConnectionStatus.RECONNECTING) {
       const id = "sticky-connection-status";
-      const msg = isReconnecting
-        ? "Signal lost! Reconnecting..."
-        : "Migrating host...";
-      const type = isReconnecting ? "warning" : "info";
+      const msg = "Signal lost! Reconnecting...";
 
       setNotifications((prev) => {
         if (prev.some((n) => n.id === id)) return prev;
-        return [...prev, { id, message: msg, type, duration: 0 }];
+        return [...prev, { id, message: msg, type: "warning", duration: 0 }];
       });
     } else {
-      // Remove sticky notification
       removeNotification("sticky-connection-status");
     }
-  }, [session.status]);
+  }, [connectionStatus]);
 
   // 2. Message Logic: Unread Badge, Mentions, and Replies
   useEffect(() => {
-    const currentMessages = session.gameState?.messages || [];
+    const currentMessages = messages || [];
 
     // Initialize ref on first load with messages
     if (prevMessageCountRef.current === null) {
@@ -190,7 +312,7 @@ export default function App() {
       // Count pre-existing messages from others as unread
       if (tab !== "chat") {
         const messagesFromOthers = currentMessages.filter(
-          (m) => m && m.senderUuid !== session.myUuid,
+          (m) => m && m.senderUuid !== myUuid,
         );
         setUnreadCount(messagesFromOthers.length);
       }
@@ -202,34 +324,32 @@ export default function App() {
       const lastMsg = currentMessages[currentMessages.length - 1];
 
       // Increment unread badge if not on chat tab
-      if (tab !== "chat" && lastMsg && lastMsg.senderUuid !== session.myUuid) {
+      if (tab !== "chat" && lastMsg && lastMsg.senderUuid !== myUuid) {
         const unreadIncrement = newMessages.filter(
-          (m) => m && m.senderUuid !== session.myUuid,
+          (m) => m && m.senderUuid !== myUuid,
         ).length;
         setUnreadCount((prev) => prev + unreadIncrement);
       }
 
       // Check for mentions and replies
-      if (lastMsg.senderUuid !== session.myUuid) {
-        const myPlayer = session.gameState.players.find(
-          (p) => p.uuid === session.myUuid,
-        );
-        const myName = myPlayer?.name || "";
+      if (lastMsg.senderUuid !== myUuid) {
+        const myPlayerData = players.find((p) => p.uuid === myUuid);
+        const myPlayerName = myPlayerData?.name || "";
 
-        if (myName && lastMsg.content.includes(`@${myName}`)) {
+        if (myPlayerName && lastMsg.content.includes(`@${myPlayerName}`)) {
           addNotification(`@${lastMsg.senderName} mentioned you!`, "info");
         } else if (lastMsg.replyToId) {
           const repliedToMsg = currentMessages.find(
             (m) => m.id === lastMsg.replyToId,
           );
-          if (repliedToMsg && repliedToMsg.senderUuid === session.myUuid) {
+          if (repliedToMsg && repliedToMsg.senderUuid === myUuid) {
             addNotification(`${lastMsg.senderName} replied to you`, "info");
           }
         }
       }
     }
     prevMessageCountRef.current = currentMessages.length;
-  }, [session.gameState.messages, tab, session.myUuid]);
+  }, [messages, tab, myUuid, players]);
 
   useEffect(() => {
     if (tab === "chat") {
@@ -242,29 +362,27 @@ export default function App() {
     if (!isMountedRef.current) return;
 
     // waiting for stable connection before alerting mod changes
-    if (session.status !== ConnectionStatus.CONNECTED) return;
+    if (connectionStatus !== ConnectionStatus.CONNECTED) return;
 
-    const players = session.gameState?.players || [];
     const currentMod = players.find((p) => p && p.isMod)?.name;
 
     // Initialize ref on first load or re-sync
     if (prevModRef.current === undefined) {
-      prevModRef.current = currentMod || null;
+      prevModRef.current = currentMod || undefined;
       return;
     }
 
     if (currentMod && prevModRef.current && prevModRef.current !== currentMod) {
       addNotification(`New Mod: ${currentMod}`, "info");
     }
-    prevModRef.current = currentMod || null;
-  }, [session.gameState?.players, session.status]);
+    prevModRef.current = currentMod || undefined;
+  }, [players, connectionStatus]);
 
   // 4. Logic: Your Turn & Finished
   useEffect(() => {
-    const currentSession = session.gameState?.currentSession;
     // "Your Turn" logic
     if (currentSession && currentSession.id !== prevSessionIdRef.current) {
-      if (currentSession.playerIds.includes(session.myId)) {
+      if (currentSession.playerIds.includes(myId)) {
         addNotification("It's your time to shine!", "success");
       }
     }
@@ -275,15 +393,12 @@ export default function App() {
     }
 
     prevSessionIdRef.current = currentSession?.id || null;
-  }, [session.gameState?.currentSession, session.myId]);
+  }, [currentSession, myId]);
 
   // 5. Connection Timeout Logic
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (
-      session.status === ConnectionStatus.CONNECTING &&
-      !session.gameState.sessionName
-    ) {
+    if (connectionStatus === ConnectionStatus.CONNECTING && !sessionName) {
       timer = setTimeout(() => {
         setIsStuck(true);
       }, 5000);
@@ -291,13 +406,13 @@ export default function App() {
       setIsStuck(false);
     }
     return () => clearTimeout(timer);
-  }, [session.status, session.gameState.sessionName]);
+  }, [connectionStatus, sessionName]);
 
   // Common state-dependent content wrapper
   const renderView = () => {
     if (
-      session.status === ConnectionStatus.IDLE ||
-      session.status === ConnectionStatus.ERROR
+      connectionStatus === ConnectionStatus.IDLE ||
+      connectionStatus === ConnectionStatus.ERROR
     ) {
       return (
         <LandingView
@@ -312,10 +427,7 @@ export default function App() {
       );
     }
 
-    if (
-      session.status === ConnectionStatus.CONNECTING &&
-      !session.gameState.sessionName
-    ) {
+    if (connectionStatus === ConnectionStatus.CONNECTING && !sessionName) {
       return (
         <div className="w-full h-full bg-white/20 backdrop-blur-3xl flex flex-col items-center justify-center gap-4">
           <div className="relative">
@@ -360,8 +472,8 @@ export default function App() {
     }
 
     return (
-      <ErrorBoundary>
-        <AnimatePresence mode="wait">
+      <ErrorBoundary key={tab}>
+        <AnimatePresence>
           {tab === "queue" && (
             <motion.div
               key="queue-view"
@@ -372,10 +484,10 @@ export default function App() {
               className="absolute inset-0 h-full"
             >
               <QueueView
-                gameState={session.gameState}
-                myId={session.myId}
+                gameState={gameState}
+                myId={myId}
                 session={session}
-                isMod={session.isMod}
+                isMod={isMod}
                 addNotification={addNotification}
               />
             </motion.div>
@@ -390,10 +502,10 @@ export default function App() {
               className="absolute inset-0 h-full"
             >
               <PlayersView
-                gameState={session.gameState}
-                myId={session.myId}
+                gameState={gameState}
+                myId={myId}
                 session={session}
-                isMod={session.isMod}
+                isMod={isMod}
               />
             </motion.div>
           )}
@@ -407,9 +519,9 @@ export default function App() {
               className="absolute inset-0 h-full"
             >
               <ChatView
-                gameState={session.gameState}
-                myId={session.myId}
-                myUuid={session.myUuid}
+                gameState={gameState}
+                myId={myId}
+                myUuid={myUuid}
                 onSend={session.sendMessage}
                 onVote={session.castVote}
                 onModDecision={session.modDecision}
@@ -449,9 +561,9 @@ export default function App() {
           {renderView()}
         </div>
 
-        {session.status !== ConnectionStatus.IDLE &&
-          session.status !== ConnectionStatus.ERROR &&
-          session.gameState.sessionName &&
+        {connectionStatus !== ConnectionStatus.IDLE &&
+          connectionStatus !== ConnectionStatus.ERROR &&
+          (sessionName || sessionCode) &&
           !isKeyboardOpen && (
             <div className="px-2 pb-2 safe-area-bottom main-nav-container shrink-0 z-50">
               <div className="glass-card bg-white/95 border-2 border-white rounded-2xl shadow-md flex justify-around items-center h-[60px] px-1">
@@ -460,11 +572,7 @@ export default function App() {
                   onClick={() => setTab("queue")}
                   icon={<ListOrdered size={20} />}
                   label="Queue"
-                  badge={
-                    (session.gameState?.queue?.length || 0) > 0
-                      ? session.gameState.queue.length
-                      : undefined
-                  }
+                  badge={(queue?.length || 0) > 0 ? queue.length : undefined}
                   color="text-blue-600"
                 />
                 <TabButton
