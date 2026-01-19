@@ -69,11 +69,7 @@ export default function App() {
   const [myName, setMyName] = useState(() => getIdentity().name || "");
 
   const [theme, setTheme] = useState(() => {
-    if (
-      localStorage.theme === "dark" ||
-      (!("theme" in localStorage) &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches)
-    ) {
+    if (localStorage.theme === "dark") {
       return "dark" as const;
     }
     return "light" as const;
@@ -473,6 +469,8 @@ export default function App() {
           onRecoverSession={session.recoverSession}
           isConnecting={false}
           error={session.error}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
       );
     }

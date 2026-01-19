@@ -7,6 +7,8 @@ import {
   CloudLightning,
   Crown,
   ChevronLeft,
+  Sun,
+  Moon,
 } from "lucide-react";
 import logo from "../assets/logo.png";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,6 +25,8 @@ interface LandingViewProps {
   onRecoverSession: (code: string, name: string) => void;
   isConnecting: boolean;
   error: string | null;
+  theme: "light" | "dark";
+  toggleTheme: () => void;
 }
 
 export const LandingView: React.FC<LandingViewProps> = ({
@@ -31,6 +35,8 @@ export const LandingView: React.FC<LandingViewProps> = ({
   onRecoverSession,
   isConnecting,
   error,
+  theme,
+  toggleTheme,
 }) => {
   const [name, setName] = useState("");
   const [sessionCode, setSessionCode] = useState("");
@@ -130,8 +136,24 @@ export const LandingView: React.FC<LandingViewProps> = ({
       initial="initial"
       animate="animate"
       exit="exit"
-      className="flex flex-col h-full p-6 justify-center gap-6 overflow-y-auto no-scrollbar"
+      className="flex flex-col h-full p-6 justify-center gap-6 overflow-y-auto no-scrollbar relative"
     >
+      <div className="fixed top-6 right-6 z-50">
+        <button
+          onClick={toggleTheme}
+          className="w-12 h-12 glass-card bg-white/50 dark:bg-slate-800/50 flex items-center justify-center rounded-2xl shadow-xl border-2 border-white dark:border-slate-800 text-dreamy-slate dark:text-midnight-slate transition-all active:scale-90"
+          title={
+            theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"
+          }
+        >
+          {theme === "dark" ? (
+            <Sun size={24} className="text-dreamy-yellow" />
+          ) : (
+            <Moon size={24} className="text-dreamy-blue" />
+          )}
+        </button>
+      </div>
+
       <div className="text-center space-y-2.5 pt-2">
         <motion.div
           animate={{
