@@ -36,6 +36,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [showEmojiPickerFor, setShowEmojiPickerFor] = useState<string | null>(
     null,
   );
+
+  // Show action bar for a specific message (used for mobile tap-to-reveal)
+  const [showActionsFor, setShowActionsFor] = useState<string | null>(null);
+
+  // Close action overlays (emoji/actions) when clicking/tapping outside
+  React.useEffect(() => {
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest("[data-action-for]")) return; // clicked inside a message/action
+      setShowActionsFor(null);
+      setShowEmojiPickerFor(null);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, []);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -331,6 +348,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 key={msg.id}
+                data-action-for={msg.id}
+                onClick={() =>
+                  setShowActionsFor((prev) => (prev === msg.id ? null : msg.id))
+                }
                 className={`group relative flex flex-col ${isCompact ? "mt-0.5" : "mt-4"} ${isHighlighted ? "bg-dreamy-blue/5 dark:bg-midnight-blue/5 -mx-2 px-2 rounded-2xl" : ""}`}
               >
                 {replyMsg && (
@@ -419,22 +440,34 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   </div>
                 </div>
 
-                {/* Quick Action Bar */}
-                <div className="absolute -top-4 right-0 transition-all z-10">
+                {/* Quick Action Bar - hidden by default on all platforms; appears on group-hover or when the message is tapped */}
+                <div
+                  data-action-for={msg.id}
+                  className={`absolute -top-4 right-0 transition-all z-10 ${
+                    showActionsFor === msg.id
+                      ? "opacity-100 translate-y-0 pointer-events-auto"
+                      : "opacity-0 -translate-y-1 pointer-events-none"
+                  } group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto`}
+                >
                   <div className="flex items-center glass-card bg-white dark:bg-slate-800 rounded-2xl shadow-lg border-2 border-white dark:border-slate-700 overflow-hidden h-9 p-1 gap-1">
                     <button
-                      onClick={() =>
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setShowEmojiPickerFor(
                           showEmojiPickerFor === msg.id ? null : msg.id,
-                        )
-                      }
+                        );
+                      }}
                       className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 dark:text-slate-500 transition-all active:bg-slate-50 dark:active:bg-slate-700"
                       title="React"
                     >
                       <Smile size={18} />
                     </button>
                     <button
-                      onClick={() => setReplyingTo(msg)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setReplyingTo(msg);
+                        setShowActionsFor(null);
+                      }}
                       className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 dark:text-slate-500 transition-all active:bg-slate-50 dark:active:bg-slate-700"
                       title="Reply"
                     >
