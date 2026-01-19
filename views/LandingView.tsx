@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
-import { Users, Clock, Trash2, CloudLightning, Crown } from "lucide-react";
+import {
+  Clock,
+  Trash2,
+  CloudLightning,
+  Crown,
+  ChevronLeft,
+  Sun,
+  Moon,
+} from "lucide-react";
+import logo from "../assets/logo.png";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   getIdentity,
   getRecentSessions,
   removeRecentSession,
   RecentSession,
-  loadHostState,
 } from "../utils/storage";
 
 interface LandingViewProps {
@@ -16,6 +25,8 @@ interface LandingViewProps {
   onRecoverSession: (code: string, name: string) => void;
   isConnecting: boolean;
   error: string | null;
+  theme: "light" | "dark";
+  toggleTheme: () => void;
 }
 
 export const LandingView: React.FC<LandingViewProps> = ({
@@ -24,6 +35,8 @@ export const LandingView: React.FC<LandingViewProps> = ({
   onRecoverSession,
   isConnecting,
   error,
+  theme,
+  toggleTheme,
 }) => {
   const [name, setName] = useState("");
   const [sessionCode, setSessionCode] = useState("");
@@ -43,25 +56,41 @@ export const LandingView: React.FC<LandingViewProps> = ({
 
   const lastSession = history[0];
 
+  const containerVariants = {
+    initial: { opacity: 0, scale: 0.95, y: 10 },
+    animate: { opacity: 1, scale: 1, y: 0 },
+    exit: { opacity: 0, scale: 0.95, y: -10 },
+  };
+
   if (mode === "join") {
     return (
-      <div className="flex flex-col h-full p-6 justify-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="text-center mb-4">
-          <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-2">
+      <motion.div
+        variants={containerVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        className="flex flex-col h-full p-6 justify-center gap-6"
+      >
+        <div className="text-center space-y-1.5">
+          <h1 className="text-2xl font-black text-dreamy-dark dark:text-midnight-text">
             Join Session
           </h1>
-          <p className="text-slate-400">Enter the code from the host</p>
+          <p className="text-dreamy-slate dark:text-midnight-slate font-bold uppercase text-[10px] tracking-widest leading-none">
+            Enter the code from the host
+          </p>
         </div>
 
         <div className="space-y-4">
           <Input
-            placeholder="Your IGN (In-Game Name)"
+            label="Your IGN (In-Game Name)"
+            placeholder="Enter Name..."
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={12}
           />
           <Input
-            placeholder="Session Code (e.g., A1B2)"
+            label="Session Code"
+            placeholder="e.g. A1B2"
             value={sessionCode}
             onChange={(e) => setSessionCode(e.target.value.toUpperCase())}
             maxLength={6}
@@ -69,18 +98,24 @@ export const LandingView: React.FC<LandingViewProps> = ({
         </div>
 
         {error && (
-          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-4 rounded-2xl bg-red-400/10 border-2 border-red-400/20 text-red-500 text-sm font-bold text-center"
+          >
             {error}
-          </div>
+          </motion.div>
         )}
 
-        <div className="space-y-3 mt-4">
+        <div className="space-y-3">
           <Button
             fullWidth
+            size="lg"
+            variant="accent"
             onClick={() => onJoin(sessionCode, name)}
             disabled={!name.trim() || !sessionCode.trim() || isConnecting}
           >
-            {isConnecting ? "Connecting..." : "Join Session"}
+            {isConnecting ? "Connecting..." : "Join Now!"}
           </Button>
           <Button
             variant="ghost"
@@ -88,131 +123,174 @@ export const LandingView: React.FC<LandingViewProps> = ({
             onClick={() => setMode("menu")}
             disabled={isConnecting}
           >
-            Back
+            <ChevronLeft size={18} className="mr-1" /> Back to Menu
           </Button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full p-6 justify-center gap-8 animate-in fade-in zoom-in-95 duration-500 overflow-y-auto">
-      <div className="text-center space-y-2 pt-4">
-        <div className="flex justify-center mb-4">
-          <div className="w-20 h-20 bg-gradient-to-br from-cyan-400 to-pink-500 rounded-full flex items-center justify-center shadow-xl shadow-pink-500/20">
-            <Users className="w-10 h-10 text-white" />
+    <motion.div
+      variants={containerVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      className="flex flex-col h-full p-6 justify-center gap-6 overflow-y-auto no-scrollbar relative"
+    >
+      <div className="fixed top-6 right-6 z-50">
+        <button
+          onClick={toggleTheme}
+          className="w-12 h-12 glass-card bg-white/50 dark:bg-slate-800/50 flex items-center justify-center rounded-2xl shadow-xl border-2 border-white dark:border-slate-800 text-dreamy-slate dark:text-midnight-slate transition-all active:scale-90"
+          title={
+            theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"
+          }
+        >
+          {theme === "dark" ? (
+            <Sun size={24} className="text-dreamy-yellow" />
+          ) : (
+            <Moon size={24} className="text-dreamy-blue" />
+          )}
+        </button>
+      </div>
+
+      <div className="text-center space-y-2.5 pt-2">
+        <motion.div
+          animate={{
+            y: [0, -6, 0],
+          }}
+          transition={{
+            duration: 4,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          className="flex justify-center mb-4"
+        >
+          <div className="w-24 h-24 glass-card rounded-4xl flex items-center justify-center shadow-xl border-2 border-white dark:border-slate-800 relative overflow-hidden bg-white/40 dark:bg-slate-900/40">
+            <div className="absolute inset-0 bg-gradient-to-tr from-dreamy-pink/10 to-dreamy-blue/10 dark:from-midnight-pink/10 dark:to-midnight-blue/10" />
+            <img
+              src={logo}
+              alt="Logo"
+              className="w-16 h-16 object-contain relative z-10"
+            />
           </div>
-        </div>
-        <h1 className="text-4xl font-black text-white tracking-tight">
-          Mai<span className="text-cyan-400">Mai</span>Mai
+        </motion.div>
+        <h1 className="text-3xl font-black text-dreamy-dark dark:text-midnight-text tracking-tight leading-none">
+          Mai
+          <span className="text-dreamy-blue dark:text-midnight-blue">Mai</span>
+          Mai
         </h1>
-        <p className="text-slate-400 text-lg">A mamai queueing webapp</p>
+        <p className="text-slate-500 dark:text-slate-400 text-[11px] font-black uppercase tracking-[0.15em] opacity-80">
+          A maimai Queueing Service
+        </p>
       </div>
 
       <div className="space-y-4 w-full">
         {error && (
-          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+          <div className="p-4 rounded-2xl bg-red-400/10 border-2 border-red-400/20 text-red-500 text-sm font-bold text-center">
             {error}
           </div>
         )}
 
-        <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700 mb-4">
+        <div className="glass-card p-4 rounded-3xl border-2 border-white dark:border-slate-800 shadow-lg mb-2">
           <Input
             label="Set your IGN"
-            placeholder="Enter Name..."
+            placeholder="Whatev's name..."
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="mb-2"
             maxLength={12}
           />
         </div>
 
-        {lastSession && (
+        <div className="grid grid-cols-1 gap-3">
+          {lastSession && (
+            <Button
+              fullWidth
+              size="lg"
+              className="bg-dreamy-yellow dark:bg-midnight-yellow text-dreamy-dark dark:text-slate-900 border-b-4 border-yellow-400 dark:border-yellow-600 shadow-md shadow-yellow-200 dark:shadow-none"
+              onClick={() => {
+                onRecoverSession(lastSession.code, name);
+              }}
+              disabled={!name.trim() || isConnecting}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <CloudLightning size={20} className="text-orange-400" />
+                <span>Rejoin ({lastSession.code})</span>
+              </div>
+            </Button>
+          )}
+
           <Button
             fullWidth
-            className="bg-orange-500 text-white hover:bg-orange-400 shadow-lg shadow-orange-500/20 mb-2"
-            onClick={() => {
-              if (loadHostState(lastSession.code)) {
-                onRecoverSession(lastSession.code, name);
-              } else {
-                onJoin(lastSession.code, name);
-              }
-            }}
+            size="lg"
+            variant="primary"
+            className="border-b-4 border-dreamy-blue/50"
+            onClick={() => onCreateSession(name)}
             disabled={!name.trim() || isConnecting}
           >
-            <div className="flex items-center justify-center gap-2">
-              <CloudLightning size={20} />
-              {loadHostState(lastSession.code)
-                ? `Resume Session ${lastSession.code}`
-                : `Rejoin Session ${lastSession.code}`}
-            </div>
+            {isConnecting ? "Sparkling..." : "Host Session"}
           </Button>
-        )}
 
-        <Button
-          fullWidth
-          variant="primary"
-          onClick={() => onCreateSession(name)}
-          disabled={!name.trim() || isConnecting}
-        >
-          {isConnecting ? "Creating..." : "Host New Session"}
-        </Button>
-        <Button fullWidth variant="secondary" onClick={() => setMode("join")}>
-          Join Existing Session
-        </Button>
+          <Button
+            fullWidth
+            size="lg"
+            variant="secondary"
+            className="border-b-4 border-dreamy-pink/50"
+            onClick={() => setMode("join")}
+          >
+            Join Someone
+          </Button>
+        </div>
       </div>
 
       {history.length > 0 && (
-        <div className="w-full">
-          <h3 className="text-sm font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
-            <Clock size={14} /> Recent
+        <div className="w-full mt-2">
+          <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-2 ml-2 flex items-center gap-2">
+            <Clock size={14} /> History
           </h3>
-          <div className="space-y-2">
-            {history.map((h, i) => (
-              <div key={i} className="flex gap-2">
-                <button
-                  onClick={() => {
-                    if (loadHostState(h.code)) {
+          <div className="space-y-3">
+            <AnimatePresence mode="popLayout">
+              {history.map((h, i) => (
+                <motion.div
+                  key={h.code}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="flex gap-2"
+                >
+                  <button
+                    onClick={() => {
                       onRecoverSession(h.code, name);
-                    } else {
-                      onJoin(h.code, name);
-                    }
-                  }}
-                  disabled={!name.trim()}
-                  className="flex-1 bg-slate-800/50 hover:bg-slate-800 p-3 rounded-xl flex justify-between items-center text-left border border-slate-700 transition-colors group"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-mono font-bold text-cyan-400 group-hover:text-cyan-300">
-                      {h.code}
+                    }}
+                    disabled={!name.trim()}
+                    className="flex-1 glass-card p-3 rounded-2xl flex justify-between items-center text-left border-2 border-white/80 dark:border-slate-800 transition-all group active:scale-[0.98]"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-mono font-black text-lg text-dreamy-purple dark:text-midnight-purple transition-colors">
+                        {h.code}
+                      </span>
+                    </div>
+                    <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 bg-white/50 dark:bg-slate-800/50 px-2.5 py-0.5 rounded-full border border-white dark:border-slate-700">
+                      {new Date(h.lastJoined).toLocaleDateString()}
                     </span>
-                    {loadHostState(h.code) && (
-                      <div className="flex items-center gap-1">
-                        <Crown size={10} className="text-orange-400" />
-                        <span className="text-[10px] text-orange-400 font-bold uppercase tracking-wider">
-                          Host
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-xs text-slate-500">
-                    {new Date(h.lastJoined).toLocaleDateString()}
-                  </span>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteSession(h.code);
-                  }}
-                  className="p-3 bg-slate-800/50 hover:bg-red-500/10 border border-slate-700 hover:border-red-500/50 rounded-xl text-slate-500 hover:text-red-400 transition-colors"
-                  title="Remove from history"
-                >
-                  <Trash2 size={20} />
-                </button>
-              </div>
-            ))}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteSession(h.code);
+                    }}
+                    className="w-12 glass-card border-2 border-white dark:border-slate-800 rounded-2xl flex items-center justify-center text-dreamy-slate dark:text-midnight-slate transition-all active:scale-90"
+                    title="Remove from history"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };

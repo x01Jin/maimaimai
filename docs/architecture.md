@@ -1,93 +1,165 @@
 # Architecture Overview
 
-MaiMaiMai is built on a decentralized, peer-to-peer (P2P) architecture that eliminates the need for a central server, ensuring privacy, low latency, and resilience against server outages.
+MaiMaiMai is built on a decentralized, peer-to-peer (P2P) architecture using **Y.js CRDTs with WebRTC mesh networking**. This eliminates the need for a central server, ensuring privacy, low latency, and automatic conflict resolution.
 
-## Multi-Service Peer P2P Topology
+## Y.js CRDT Mesh Architecture
 
-The system uses a **Multi-Service Peer Mesh** topology over WebRTC (via PeerJS). This hybrid approach combines the benefits of a full mesh (direct communication) with an authoritative distributed core (service peers).
+The system uses **Y.js** (Conflict-free Replicated Data Types) over **y-webrtc** for peer-to-peer synchronization. This approach automatically handles:
 
-### 1. The Beacon (Discovery)
+- **Conflict resolution**: Multiple users can edit simultaneously without conflicts
+- **Offline support**: Changes sync when reconnected via y-indexeddb persistence
+- **No single point of failure**: No host/client distinction, all peers are equal
 
-Since there is no central database to list active sessions, MaiMaiMai uses a deterministic **Beacon** system:
+### Key Components
 
-- **ID Scheme:** The session creator (Mod) attempts to capture a secondary PeerJS ID: `mai-q-[CODE]` (e.g., `mai-q-ABCD`).
-- **Handshake:** New players connect to this Beacon ID first.
-- **Discovery:** Upon connection, a service peer sends a `PEER_DISCOVERY` message containing the full list of Peer IDs currently in the session.
-- **Transition:** The joining player then establishes direct WebRTC data channels with all other peers and disconnects from the Beacon.
-- **Conflict Handling:** Only the Mod captures the Beacon. If a Mod disconnects, the newly elected Mod takes over the Beacon. If an original host returns, they perform a **Beacon Check** (connecting to the Beacon as a client) to determine if they should resume hosting or join as a regular player, preventing WebSocket conflicts.
+#### 1. Y.js Document (`Y.Doc`)
 
-### 2. Service Peers (The Authoritative Core)
+The shared document contains all synchronized state:
 
-While every peer can talk to every other peer, only **Service Peers** are authorized to mutate the state and broadcast updates.
+```typescript
+ydoc.getMap("players")     // Y.Map<Player> - Player list
+ydoc.getArray("queue")     // Y.Array<QueueEntry> - Queue entries
+ydoc.getArray("messages")  // Y.Array<ChatMessage> - Chat history
+ydoc.getMap("session")     // Session metadata (current, finishApprovals, activeVote)
+ydoc.getMap("mod")         // Moderator state (modId)
+ydoc.getMap("meta")        // Room metadata (sessionName, createdAt)
+```
 
-- **Selection:** The system maintains 3 Service Peers: the current Mod (mandatory) and up to 2 additional high-quality peers.
-- **Redundancy:** If one service peer disconnects, the state remains safe and authoritative on the others. This prevents "state loss" if the Mod refreshes their browser.
-- **Action Flow:** Clients send `ACTION` messages (e.g., `JOIN_QUEUE`) to any available service peer.
-- **Verification:** Service peers execute the `sessionUtils` reducer, increment the state `version`, and broadcast the new state via `SYNC_STATE`.
+#### 2. WebRTC Provider (`y-webrtc`)
 
-### 3. Connection Quality & Stability Monitoring (QoS)
+Handles peer discovery and WebRTC data channel management:
 
-Service peers are not static. They are dynamically selected based on real-time network metrics measured via `HEARTBEAT` / `PONG` exchanges:
+- Connects to public signaling servers for peer discovery
+- Establishes direct WebRTC connections between peers
+- Uses ICE servers (STUN/TURN) for NAT traversal
+- Max 20 connections per peer
 
-- **Latency:** Round-trip time (RTT).
-- **Jitter:** Variance in latency over the last 10 samples (lower is better for stability).
-- **Packet Loss:** Calculated using incrementing **sequence numbers** in heartbeats. Every heartbeat is tracked in a `pendingSequences` map. If a sequence is not acknowledged within 5 seconds, it is marked as lost.
-- **Adaptive Heartbeat:** The interval dynamically scales between 3s and 10s. If jitter is low (<5ms), the interval increases to save battery and data. If instability is detected, it reverts to a faster rate for quick failure detection.
-- **Quality Score:** A weighted formula: `Score = (LatencyScore * 0.6) + (JitterScore * 0.2) + (PacketLossScore * 0.2)`. A decay mechanism ensures scores recover once network stability returns.
-- **Dynamic Promotion:** The Mod monitors these scores and updates the `servicePeers` list in the `GameState` if better candidates are found.
+#### 3. IndexedDB Persistence (`y-indexeddb`)
 
----
+Provides indefinite local persistence:
 
-## State Synchronization Protocol
-
-State is managed as a single immutable `GameState` object.
-
-### Versioning & Conflict Resolution
-
-- **Version Number:** Every state change increments the `version`. Clients only accept `SYNC_STATE` messages if the incoming `version` is strictly higher than their local version.
-- **Smart Chat Merging:** To prevent chat history loss during state transitions or mod transfers, chat messages are merged and deduplicated across state updates. Instead of overwriting history, the local message list is combined with the incoming list, sorted by timestamp, and capped at `MAX_CHAT_HISTORY`.
-- **Delta Patching:** `SYNC_STATE` messages include the `lastAction` that caused the update. If a peer is exactly one version behind, it applies the action locally instead of replacing the entire state, ensuring smooth, "zero-flicker" updates.
-- **Hashing:** A deterministic hash of the state (`stateHash`) is calculated based on critical fields (queue, players, messages, etc.). `SYNC_STATE` is only broadcast if the content hash changes.
-- **Data Capping:** Chat history is limited to 50 messages (`MAX_CHAT_HISTORY`) to keep the synchronization payload small and mobile-friendly.
-
-### Resilience & Mobile Data Optimization
-
-- **NAT Traversal:** The system uses multiple globally distributed STUN servers and dedicated TURN relays (TCP supported) to maximize connection success rates behind CGNAT and restrictive mobile firewalls.
-- **Efficient Mod Transfer:** Moderator handoff is optimized to prevent network spikes. The full `GameState` is only transmitted via unicast to the new Moderator, while other peers receive a lightweight notification.
-- **Action Buffering:** If a player loses connection to all service peers, their actions (chats, queue joins) are buffered locally. Once a connection to a service peer is re-established, the buffer is automatically flushed.
-- **Robust Reconnection:** PeerJS `network-disconnected` events trigger an immediate automatic reconnection attempt to restore the session without user intervention.
-
-### Persistence & Recovery
-
-The current Mod automatically saves the `GameState` to `localStorage` on every update.
-
-- **Smart Session Recovery (Host):** If the Mod's browser refreshes, they can use the "Resume Session" feature. The system creates a temporary peer to probe the Beacon:
-  - If the Beacon is **Unresponsive**: The original Mod resumes the role, restoring state from `localStorage` and re-broadcasting.
-  - If the Beacon is **Active**: It means another player was elected Mod while the host was gone. The original Mod automatically joins as a regular player instead of fighting for the Beacon ID.
-- **Client Auto-Recovery:** All participants (not just the Mod) persist the active session code in `localStorage`. If the page is refreshed or the browser restarts, the application automatically attempts to rejoin the active session by reconnecting to the Beacon, ensuring seamless continuity.
-- **Migrated Mod Recovery:** If a player is elected as Mod, they begin saving the state locally to provide future recovery if the session is left to them.
+- State survives browser refresh/restart
+- Supports offline usage
+- Syncs automatically when reconnected
 
 ---
 
-## P2P Message Protocol
+## State Synchronization
 
-| Message Type     | Direction         | Description                                                                                                 |
-| :--------------- | :---------------- | :---------------------------------------------------------------------------------------------------------- |
-| `HELLO`          | New -> Beacon     | Initial handshake from a joining player.                                                                    |
-| `PEER_DISCOVERY` | Service -> New    | Provides the list of all active Peer IDs to the new player.                                                 |
-| `SYNC_STATE`     | Service -> All    | Broadcasts the latest authoritative `GameState`.                                                            |
-| `ACTION`         | Client -> Service | Forwards a user intent (e.g., `JOIN_QUEUE`) for processing.                                                 |
-| `HEARTBEAT`      | All -> All        | Keep-alive with sequence number and timestamp.                                                              |
-| `PONG`           | All -> All        | Response to heartbeat with original timestamp and sequence.                                                 |
-| `TRANSFER_MOD`   | Mod -> All        | Signals handoff. Optimized: sends full state only to the target, others receive a lightweight notification. |
-| `CLAIM_HOST`     | Elected -> All    | Broadcast during an election to claim the Mod role.                                                         |
+All state changes are **CRDT operations** that automatically merge across peers.
+
+### How It Works
+
+1. **UI Action**: User clicks "Join Queue"
+2. **CRDT Operation**: `queueArray.push([newEntry])`  
+3. **Auto-Broadcast**: Y.js automatically syncs to all connected peers
+4. **Conflict-Free**: If two peers add entries simultaneously, both appear
+
+### No Version Numbers Needed
+
+Unlike the previous reducer-based approach, Y.js CRDTs don't need version numbers or conflict resolution logic. The data structures themselves guarantee eventual consistency.
 
 ---
 
-## Mod Election Algorithm
+## Y.js Hooks Architecture
 
-If the current Mod disconnects unexpectedly, the mesh performs an automatic election to maintain the Beacon and authority:
+| Hook | State | Responsibility |
+| `useYjsSession` | Y.Doc, Provider | Connection lifecycle, room management |
+| `useYjsAwareness` | Awareness | Real-time presence/online status |
+| `useYjsPlayers` | `Y.Map<Player>` | Player join/leave, custom players |
+| `useYjsQueue` | `Y.Array<QueueEntry>` | Queue, current session, voting, auto-advance |
+| `useYjsChat` | `Y.Array<ChatMessage>` | Messages, reactions |
+| `useYjsMod` | `Y.Map` | Moderator state, transfer, election |
 
-1. **Detection:** All peers monitor the Mod's heartbeat. If no pulse is detected for `HOST_TIMEOUT_MS` (10s), an election is triggered.
-2. **Seniority:** The candidate pool is filtered for online players. The player with the **earliest `joinedAt` timestamp** (the "oldest" player) is automatically elected.
-3. **Promotion:** The winner promotes themselves to Mod, attempts to capture the session's Beacon ID, and broadcasts a `SYNC_STATE` with an authority bump (`version + 10`).
+---
+
+## Mod Management
+
+Unlike the previous host-based system:
+
+- **Mod is just a flag**: Stored in `Y.Map` as `modId`
+- **Auto-election**: First player to join becomes mod
+- **Transfer**: Any mod can transfer to another player
+- **Failover**: If mod disconnects, next oldest connected player takes over
+
+---
+
+## Network Configuration
+
+### ICE Servers
+
+Multiple STUN servers for NAT traversal, with TURN relay fallback:
+
+```typescript
+// STUN for direct connections
+{ urls: "stun:stun.l.google.com:19302" }
+
+// TURN for relayed connections (CGNAT/mobile)
+{ urls: "turn:openrelay.metered.ca:443?transport=tcp" }
+```
+
+### Signaling Servers
+
+Public WebRTC signaling for peer discovery:
+
+```typescript
+signaling: [
+  "wss://signaling.yjs.dev",
+  "wss://y-webrtc-signaling-eu.herokuapp.com",
+  "wss://y-webrtc-signaling-us.herokuapp.com"
+]
+```
+
+---
+
+## Data Persistence
+
+### IndexedDB (y-indexeddb)
+
+- Room data persisted indefinitely
+- Key: `maimaimai-{ROOM_CODE}`
+- Survives browser close/restart
+
+### LocalStorage
+
+- User identity (UUID, name)
+- Recent session history
+- Active session code for auto-rejoin
+
+---
+
+## Auto-Advance Logic
+
+The system automatically manages the transition from the queue to the active session. This is handled by the **Moderator** client to ensure only one peer performs the operation:
+
+1. **Requirements Check**: Each entry type has specific requirements:
+   - `SOLO`: 1 player (always met once in queue).
+   - `PARTNER`: 2 players (always met once in queue).
+   - `MATCH`: 2 players (waits for another player to match).
+2. **Merging**: When a player joins as `MATCH`, the system looks for an existing single-player `MATCH` entry in the queue to join.
+3. **Transition**: If `currentSession` is empty and the front of the queue meets its requirements, the Mod peer automatically calls `popNextSession()`.
+
+---
+
+## Session Lifecycle
+
+1. **Create Session**:
+   - Generate 4-character room code
+   - Create Y.Doc with that room
+   - Connect WebRTC provider
+   - First player becomes mod
+
+2. **Join Session**:
+   - Connect to existing room via code
+   - Sync existing state via CRDT
+   - Add self to players map
+
+3. **Rejoin/Recover**:
+   - IndexedDB has persisted state
+   - Reconnect to same room
+   - State auto-syncs
+
+4. **Leave Session**:
+   - Disconnect provider
+   - Player removed (eventually by others)
+   - Local state cleaned up

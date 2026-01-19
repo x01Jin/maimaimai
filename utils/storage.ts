@@ -1,4 +1,3 @@
-import { GameState } from "../types";
 import { STORAGE_CONFIG } from "../constants";
 
 interface UserIdentity {
@@ -85,33 +84,6 @@ export const removeRecentSession = (code: string) => {
   const history = getRecentSessions();
   const updated = history.filter((h) => h.code !== code);
   localStorage.setItem(STORAGE_CONFIG.HISTORY_KEY, JSON.stringify(updated));
-};
-
-// Host State Persistence
-export const saveHostState = (code: string, state: GameState) => {
-  try {
-    localStorage.setItem(
-      STORAGE_CONFIG.HOST_STATE_KEY_PREFIX + code,
-      JSON.stringify(state),
-    );
-  } catch (e) {
-    console.error("Failed to save host state", e);
-  }
-};
-
-export const loadHostState = (code: string): GameState | null => {
-  try {
-    const stored = localStorage.getItem(
-      STORAGE_CONFIG.HOST_STATE_KEY_PREFIX + code,
-    );
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-};
-
-export const clearHostState = (code: string) => {
-  localStorage.removeItem(STORAGE_CONFIG.HOST_STATE_KEY_PREFIX + code);
 };
 
 // Active Session Persistence

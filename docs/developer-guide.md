@@ -6,112 +6,82 @@
 - **Bundler:** Vite
 - **Styling:** Tailwind CSS (loaded via CDN in index.html)
 - **Icons:** Lucide React (npm package)
-- **Networking:** PeerJS (npm package)
+- **Networking:** Y.js + y-webrtc (CRDTs over WebRTC)
 - **Animations:** Framer Motion (npm package)
+
+### Networking & Debugging
+
+- **Primary stack:** The app uses **Y.js + y-webrtc** for peer-to-peer synchronization and `y-indexeddb` for local persistence. PeerJS is included as an optional/legacy dependency but is not relied on for core sync.
+- **Configuration:** Network-related constants live in `constants.ts` (`YJS_CONFIG.SIGNALING_SERVERS`, `MAX_CONNECTIONS`) and `ICE_SERVERS`. Edit these values to point at different signaling servers or add TURN relays.
+- **Local testing:** Add `ws://localhost:4444` to `YJS_CONFIG.SIGNALING_SERVERS` to test with a local y-webrtc signaling server.
+- **Debug tips:** Watch console logs for `[Y.js] IndexedDB synced`, `[Y.js] WebRTC connected`, and any `Session not found` errors (triggered by the join validation timeout). Use browser devtools to inspect IndexedDB (site storage) and LocalStorage keys listed in `constants.ts` to verify persisted state.
+- **Troubleshooting:** If peers do not see each other, verify signaling servers are reachable, check network restrictions (NAT/Firewall), and consider adding a TURN relay for environments with restrictive NAT.
 
 ## Core Concepts
 
-### Modular Peer Hooks
+### Y.js Hooks Architecture
 
-The "Brain" of the application is split into focused, modular hooks in `hooks/peer/`:
+The application state is managed through a set of focused custom hooks located in `hooks/yjs/`. These hooks interact with the shared Y.js document (`Y.Doc`).
 
-- **`usePeerLifecycle.ts`**: Manages the PeerJS instance lifecycle, connection/disconnection events, and cleanup.
-- **`usePeerConnections.ts`**: Manages the connection mesh - establishing and maintaining DataConnections with other peers.
-- **`usePeerMessaging.ts`**: Handles sending and receiving P2P messages (HELLO, PEER_DISCOVERY, SYNC_STATE, ACTION, HEARTBEAT, PONG).
-- **`usePeerCoordination.ts`**: Implements the Mod election algorithm, Beacon management, and authority handoffs.
-- **`usePeerSession.ts`**: The main orchestrator hook that composes all peer hooks and exposes the unified API.
+| Hook | Responsibility |
+| `useYjsSession.ts` | The main entry point. Initializes the Y.Doc, WebRTC provider, and composes other hooks. |
+| `useYjsPlayers.ts` | Manages the `players` Map. Handles joining, leaving, mod elections, and presence heartbeats. |
+| `useYjsQueue.ts` | Manages the `queue` Array. Handles adding/removing entries, matchmaking logic, and auto-advancing sessions. |
+| `useYjsChat.ts` | Manages the `messages` Array. Handles sending/receiving chat messages and cleaning up old messages. |
+| `useYjsMod.ts` | Manages the `mod` Map. Handles moderator ID storage and active voting sessions. |
+| `useYjsAwareness.ts` | Wraps the ephemeral Y.js Awareness protocol (used for real-time peer counts, separate from persisted player state). |
 
-#### State vs. Refs
+### Player Presence & Heartbeat
 
-To prevent stale closures in asynchronous WebRTC event listeners, the hooks use `useRef` for critical network state:
+The application separates "Ephemeral Awareness" from "Persisted Player State".
 
-- `connectionsRef`: A Map of active `DataConnection` objects.
-- `gameStateRef`: The latest authoritative state (synced with the React `gameState` state).
-- `qualityMetricsRef`: Rolling history of latencies, jitter, and a `pendingSequences` map for packet loss calculation.
-- `modPeerIdRef`: Tracks the current Mod for heartbeat monitoring.
-- `heartbeatSequenceRef`: An incrementing counter used to uniquely identify heartbeat probes.
+**Persisted Player State (`useYjsPlayers`)**:
+The authoritative list of players is stored in a `Y.Map` named `"players"`.
 
-#### Connection Lifecycle
+- **Heartbeat**: Every client runs a 5-second interval that updates their own entry's `lastSeen` timestamp in the Y.Map. This confirms they are still active.
+- **Offline Detection**: The "Coordinator" (automatically determined as the oldest mod/player) monitors these timestamps. If a player hasn't updated their `lastSeen` in >15 seconds, the Coordinator marks them as `isConnected: false`.
+- **Rejoin Logic**: When a user rejoins, their UUID (stored in localStorage) is used to find their existing entry in the map. Their status is immediately set to `isConnected: true`, and the heartbeat resumes.
 
-1. **Discovery Phase:** Connect to `mai-q-[CODE]` Beacon.
-2. **Handshake Phase:** Send `HELLO` -> Receive `PEER_DISCOVERY`.
-3. **Mesh Phase:** Connect to all IDs in `PEER_DISCOVERY`.
-4. **Sync Phase:** Receive `SYNC_STATE` from a service peer.
+**Ephemeral Awareness (`useYjsAwareness`)**:
+Uses the standard `y-webrtc` awareness protocol to track connected ClientIDs. This is primarily used for debugging connection counts.
 
-### `sessionUtils` (The Reducer)
+### Data Persistence
 
-Located in `utils/sessionUtils.ts`, this file contains the business logic for queue management. It is a pure function: `(GameState, ClientAction, PeerID) => GameState`.
-
-**Key Responsibilities:**
-
-- **Player Joining:** Handles new UUIDs vs. reconnecting UUIDs (ID swapping via `replacePlayerIdInGameState`).
-- **Merge Logic:** `mergeMessages` provides safe, deduplicated chat history merging across P2P state updates, preventing history gaps during mod transitions.
-- **Queue Logic:** Automatically pairing players in `MATCH` mode, handling `PARTNER` joins, and managing the `currentSession`.
-- **Voting:** Implementing the `REQUEST_SOLO` and `CAST_VOTE` logic, including auto-approval thresholds.
-- **State Hashing:** Generating a unique hash of the state (`hashState`) for optimized broadcasts.
-
-### QoS Calculation
-
-The `updateServicePeers` function (inside the hook) runs every 5 seconds on the Mod's client.
-
-- It calculates a score for every online player based on a weighted average of Latency, Jitter, and Packet Loss.
-- **Packet Loss Measurement:** The system sends a sequence-numbered `HEARTBEAT`. If a `PONG` with the matching sequence isn't received within 5s, it is marked as lost.
-- It picks the top 2 (excluding the Mod) to be additional `servicePeers`.
-- This ensures that if the Mod has a poor connection to some players, the other service peers can "bridge" the state updates.
-
----
+- **Y.js Data**: Persisted via `y-indexeddb`. The entire room state (players, queue, chat) is saved locally in the browser's IndexedDB. This allows the app to work offline and sync immediately upon reconnection.
+- **Local Identity**: The user's UUID and Name are stored in `localStorage` to ensure they reclaim their identity across page reloads.
 
 ## Development Workflow
 
 ### Adding a New Feature
 
-1. **Define Type:** Add the new action to `ClientAction` in `types.ts`.
-2. **Implement Logic:** Add the case in `utils/sessionUtils.ts`. Increment the `version`.
-3. **Expose Action:** Add action handler in the appropriate peer hook (`hooks/peer/usePeerMessaging.ts` for new message types) and call it from `usePeerSession.ts`.
-4. **Update UI:** Use the exposed function in the relevant View.
+1. **State Definition**: Decide if the state needs to be shared. If so, identify which Y.js data type (Map, Array) it belongs to.
+2. **Hook Implementation**: Add the logic to the relevant `useYjs*.ts` hook.
+   - _Example_: To add a "Ready" status, update `useYjsPlayers` to add `isReady` boolean to the `Player` type and expose a toggle function.
+3. **Component Integration**: Use the exposed function/state in your React components.
 
 ### Local Development
 
 1. `npm install`
 2. `npm run dev`
 
-*Important: PeerJS requires a Secure Context. Access via `localhost:3000`. To test between devices on the same network, you may need to use a tool like `localtunnel` or `ngrok` to provide an HTTPS endpoint.*
-
----
+_Note: Since the app uses WebRTC, testing with multiple tabs in the same browser works perfectly as they will connect via local loopback._
 
 ## Testing Strategies
 
-Distributed systems are hard to test manually. Use these scenarios to verify stability:
+### 1. Offline & Reconnection
 
-### 1. Mod Migration & State Continuity
+- Open two tabs.
+- Join a session in both.
+- Close one tab. Observe that the player is marked "Offline" after ~15 seconds in the other tab.
+- Re-open the tab. Observe that the player immediately becomes "Online".
 
-- Join with 3 players (A, B, C).
-- Send several chat messages from Player C.
-- Close Player A (Mod).
-- Verify that Player B or C becomes Mod within 10 seconds.
-- **Critical:** Verify that Player C's chat messages are still visible for the new Mod and other players (verifies atomic state handoff).
+### 2. Mod Migration
 
-### 2. Service Peer Redundancy
+- Join with 3 tabs.
+- Close the Mod's tab.
+- Verify that the "Mod" status is automatically transferred to the next oldest player.
 
-- Join with 4 players.
-- Identify the 3 service peers.
-- Disconnect one of the *non-mod* service peers.
-- Verify that the Mod selects a new service peer and the queue remains functional.
+### 3. Queue Logic
 
-### 3. ID Recovery
-
-- Join a session and enter the queue.
-- Refresh your browser.
-- Verify that your entry in the queue is still there and your name appears as "Online" (the system should have swapped your old Peer ID for your new one using your persistent UUID).
-
----
-
-## Deployment
-
-The project is deployed via GitHub Pages using the `gh-pages` package.
-
-```bash
-npm run deploy
-```
-
-Configuration is handled in `vite.config.ts` (`base` path) and `package.json` (`homepage` field).
+- Test multiple scenarios: Solo join, Partner join (with/without name), Match join.
+- Verify that the Queue automatically transitions to "Current Session" when the active session is cleared.

@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, User, Smile, Reply, X, Plus, Check, Ban } from "lucide-react";
+import { Send, Smile, Reply, X, Check, Ban, Zap } from "lucide-react";
 import { GameState, ChatMessage } from "../types";
 import { useDoubleTap } from "../hooks/useDoubleTap";
 import { ConfirmationModal } from "../components/ConfirmationModal";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ChatViewProps {
   gameState: GameState;
@@ -51,12 +52,57 @@ export const ChatView: React.FC<ChatViewProps> = ({
     confirmText: "Confirm",
   });
 
-  const endRef = useRef<HTMLDivElement>(null);
-  const { activeVote } = gameState;
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isInitialScrollRef = useRef(true);
+  const { activeVote, messages = [] } = gameState || {};
 
+  // Handle scrolling to bottom
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [gameState.messages]);
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+
+      if (isInitialScrollRef.current) {
+        // Instant jump for first mount
+        container.style.scrollBehavior = "auto";
+        container.scrollTop = container.scrollHeight;
+        isInitialScrollRef.current = false;
+
+        // Use a small delay to re-enable smooth scrolling for future messages if desired
+        // But for now, let's keep it consistent
+        const timeout = setTimeout(() => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.style.scrollBehavior = "smooth";
+          }
+        }, 50);
+        return () => clearTimeout(timeout);
+      } else {
+        // Smooth scroll for new messages
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+  }, [messages]);
+
+  // Handle immediate scroll on viewport resize (keyboard opening)
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const handleResize = () => {
+      if (scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        // Immediate scroll to bottom on keyboard, bypass smooth
+        const originalBehavior = container.style.scrollBehavior;
+        container.style.scrollBehavior = "auto";
+        container.scrollTop = container.scrollHeight;
+        container.style.scrollBehavior = originalBehavior;
+      }
+    };
+
+    vv.addEventListener("resize", handleResize);
+    return () => vv.removeEventListener("resize", handleResize);
+  }, []);
+
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSend = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -64,15 +110,26 @@ export const ChatView: React.FC<ChatViewProps> = ({
     onSend(input, replyingTo?.id);
     setInput("");
     setReplyingTo(null);
+    inputRef.current?.blur(); // Force keyboard to close
   };
 
-  const emojiList = ["❤️", "😂", "😮", "😢", "🔥", "😠", "💀"];
+  const emojiList = [
+    "❤️",
+    "😂",
+    "😮",
+    "😢",
+    "🔥",
+    "😠",
+    "💀",
+    "🎉",
+    "👍",
+    "⚡",
+  ];
 
   const renderContent = (msg: ChatMessage) => {
-    // Mention highlighting
     const parts = msg.content.split(/(@\w+)/g);
     return (
-      <span className="whitespace-pre-wrap">
+      <span className="whitespace-pre-wrap font-medium">
         {parts.map((part, i) => {
           if (part.startsWith("@")) {
             const name = part.substring(1);
@@ -82,7 +139,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               return (
                 <span
                   key={i}
-                  className={`font-bold px-1 rounded ${isMe ? "text-white bg-cyan-600" : "text-cyan-400 bg-cyan-400/10"}`}
+                  className={`font-black px-1.5 py-0.5 rounded-lg ${isMe ? "text-white dark:text-slate-900 bg-dreamy-blue dark:bg-midnight-blue" : "text-dreamy-blue dark:text-midnight-blue bg-dreamy-blue/10 dark:bg-midnight-blue/10 border border-dreamy-blue/20 dark:border-midnight-blue/20"}`}
                 >
                   {part}
                 </span>
@@ -95,7 +152,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     );
   };
 
-  const hasVoted = activeVote?.approvals.includes(myId);
+  const hasVoted = !!activeVote?.approvals?.includes(myId);
 
   const formatTime = (ts: number) => {
     const date = new Date(ts);
@@ -106,91 +163,115 @@ export const ChatView: React.FC<ChatViewProps> = ({
     gameState.players.find((p) => p.uuid === myUuid)?.name || "";
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 relative text-slate-200 overflow-hidden">
-      {/* Header / Active Vote Overlay */}
-      {activeVote && (
-        <div className="absolute top-0 left-0 right-0 z-30 p-2 bg-slate-800/80 backdrop-blur-md border-b border-slate-700">
-          <div className="bg-slate-800 rounded-md p-3 shadow-lg flex flex-col gap-3 border-l-4 border-orange-500 animate-in slide-in-from-top duration-300">
-            {/* Top Row: Info & Stats */}
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500 border border-orange-500/20">
-                  <User size={20} />
-                </div>
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-500/80">
-                    Solo Request Active
+    <div className="flex flex-col h-full bg-transparent relative overflow-hidden font-sans">
+      <AnimatePresence>
+        {activeVote && (
+          <motion.div
+            initial={{ y: -100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -100, opacity: 0 }}
+            className="absolute top-4 left-4 right-4 z-30"
+          >
+            <div className="glass-card rounded-3xl p-3 shadow-xl border-2 border-white dark:border-slate-800 flex flex-col gap-2.5">
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 border-white dark:border-slate-700 shadow-sm ${activeVote.type === "DEMOTE_MOD" ? "bg-red-100 dark:bg-red-900/30 text-red-500" : "bg-dreamy-yellow/10 dark:bg-midnight-yellow/10 text-dreamy-yellow dark:text-midnight-yellow"}`}
+                  >
+                    {activeVote.type === "DEMOTE_MOD" ? (
+                      <Ban size={20} />
+                    ) : (
+                      <Zap size={20} />
+                    )}
                   </div>
-                  <div className="text-sm font-bold text-white leading-tight">
-                    {activeVote.requesterName} wants to play solo
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-dreamy-dark dark:text-midnight-text mb-0.5">
+                      {activeVote.type === "DEMOTE_MOD"
+                        ? "Mod Demotion!"
+                        : "Solo Request!"}
+                    </div>
+                    <div className="font-black text-dreamy-dark dark:text-midnight-text leading-tight">
+                      {activeVote.requesterName}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-right glass-card bg-white dark:bg-slate-800 px-2.5 py-1 rounded-xl border-white dark:border-slate-700 border">
+                  <div className="text-[8px] font-black text-dreamy-slate dark:text-slate-400 uppercase tracking-widest leading-none mb-1">
+                    YES
+                  </div>
+                  <div className="text-lg font-black text-dreamy-dark dark:text-midnight-text leading-none tabular-nums flex items-center gap-1 justify-end">
+                    {activeVote.approvals.length}
+                    <span className="text-slate-400 dark:text-slate-500 text-xs">
+                      /
+                    </span>
+                    {activeVote.required}
                   </div>
                 </div>
               </div>
 
-              <div className="text-right mr-1">
-                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
-                  VOTES
-                </div>
-                <div className="text-xl font-black text-white leading-none tabular-nums">
-                  {activeVote.approvals.length}
-                  <span className="text-slate-600 mx-0.5 text-sm font-bold">
-                    /
-                  </span>
-                  {activeVote.required}
-                </div>
+              <div className="flex items-stretch gap-2">
+                {!hasVoted &&
+                  (activeVote.type !== "SOLO" ||
+                    activeVote.requesterId !== myId) && (
+                    <button
+                      onClick={() => onVote(true)}
+                      className={`flex-1 text-white dark:text-slate-900 active:scale-95 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg ${
+                        activeVote.type === "DEMOTE_MOD"
+                          ? "bg-red-500 dark:bg-red-600 shadow-red-500/20 dark:shadow-red-900/20"
+                          : "bg-dreamy-green dark:bg-midnight-green shadow-dreamy-green/20 dark:shadow-midnight-green/20"
+                      }`}
+                    >
+                      {activeVote.type === "DEMOTE_MOD"
+                        ? "Vote to Demote"
+                        : "Approve Vote"}
+                    </button>
+                  )}
+
+                {/* Mod can instant-resolve solo requests, but maybe NOT their own demotion? 
+                    Actually, allowing mod to 'approve' their own demotion is basically resigning. 
+                    Allowing them to reject it is vetoing. 
+                    Let's hide mod decision buttons for demotion votes to prevent abuse.
+                */}
+                {gameState.players.find((p) => p.id === myId)?.isMod &&
+                  activeVote.type !== "DEMOTE_MOD" && (
+                    <div className="flex gap-2 flex-1">
+                      <ModDecisionButton
+                        type="APPROVE"
+                        onAction={() =>
+                          setConfirmModal({
+                            isOpen: true,
+                            title: "Force Approve Solo?",
+                            message: `Directly approve ${activeVote.requesterName}'s solo request?`,
+                            onConfirm: () =>
+                              onModDecision(activeVote.id, "APPROVE"),
+                            variant: "primary",
+                            confirmText: "Approve",
+                          })
+                        }
+                      />
+                      <ModDecisionButton
+                        type="REJECT"
+                        onAction={() =>
+                          setConfirmModal({
+                            isOpen: true,
+                            title: "Decline Solo?",
+                            message: `Reject ${activeVote.requesterName}'s request?`,
+                            onConfirm: () =>
+                              onModDecision(activeVote.id, "REJECT"),
+                            variant: "danger",
+                            confirmText: "Reject",
+                          })
+                        }
+                      />
+                    </div>
+                  )}
               </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            {/* Bottom Row: Actions */}
-            <div className="flex items-stretch gap-2">
-              {!hasVoted && activeVote.requesterId !== myId && (
-                <button
-                  onClick={() => onVote(true)}
-                  className="flex-1 bg-green-600 hover:bg-green-500 active:scale-95 text-white py-2.5 rounded-lg font-black text-[11px] tracking-wider transition-all shadow-lg shadow-green-900/20 uppercase"
-                >
-                  Approve Vote
-                </button>
-              )}
-
-              {gameState.players.find((p) => p.id === myId)?.isMod && (
-                <div
-                  className={`flex gap-2 ${!hasVoted && activeVote.requesterId !== myId ? "flex-[1.5]" : "flex-1"}`}
-                >
-                  <ModDecisionButton
-                    type="APPROVE"
-                    onAction={() =>
-                      setConfirmModal({
-                        isOpen: true,
-                        title: "Force Approve Solo?",
-                        message: `Are you sure you want to directly approve ${activeVote.requesterName}'s solo play request?`,
-                        onConfirm: () =>
-                          onModDecision(activeVote.id, "APPROVE"),
-                        variant: "primary",
-                        confirmText: "Approve",
-                      })
-                    }
-                  />
-                  <ModDecisionButton
-                    type="REJECT"
-                    onAction={() =>
-                      setConfirmModal({
-                        isOpen: true,
-                        title: "Reject Solo Request?",
-                        message: `Are you sure you want to reject ${activeVote.requesterName}'s solo play request?`,
-                        onConfirm: () => onModDecision(activeVote.id, "REJECT"),
-                        variant: "danger",
-                        confirmText: "Reject",
-                      })
-                    }
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
@@ -204,248 +285,261 @@ export const ChatView: React.FC<ChatViewProps> = ({
         variant={confirmModal.variant}
       />
 
-      {/* Messages List */}
-      <div className="flex-1 overflow-y-auto px-0 pt-1 pb-1 no-scrollbar scroll-smooth">
-        {/* Placeholder for header spacing when vote is active */}
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto px-4 pt-4 pb-5 no-scrollbar"
+      >
         {activeVote && <div className="h-[120px]"></div>}
 
-        {gameState.messages.map((msg: ChatMessage, idx) => {
-          if (msg.isSystem) {
+        <AnimatePresence initial={false}>
+          {gameState.messages.map((msg: ChatMessage, idx) => {
+            if (msg.isSystem) {
+              return (
+                <div key={msg.id} className="flex justify-center my-3">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white dark:text-slate-300 bg-slate-900/60 dark:bg-slate-800/80 px-4 py-1.5 rounded-full backdrop-blur-md border border-white/10 dark:border-slate-700/50 shadow-sm">
+                    {msg.content}
+                  </span>
+                </div>
+              );
+            }
+
+            const isMe = msg.senderUuid
+              ? msg.senderUuid === myUuid
+              : msg.senderId === myId;
+            const replyMsg = msg.replyToId
+              ? gameState.messages.find((m) => m.id === msg.replyToId)
+              : null;
+            const prevMsg = idx > 0 ? gameState.messages[idx - 1] : null;
+            const isCompact =
+              prevMsg &&
+              !prevMsg.isSystem &&
+              (msg.senderUuid
+                ? prevMsg.senderUuid === msg.senderUuid
+                : prevMsg.senderId === msg.senderId) &&
+              msg.timestamp - prevMsg.timestamp < 300000 &&
+              !msg.replyToId;
+
+            const isModNow = !!gameState.players.find(
+              (p) => p.uuid === msg.senderUuid || p.id === msg.senderId,
+            )?.isMod;
+            const isHighlighted =
+              msg.content.includes(`@${myPlayerName}`) ||
+              (replyMsg && replyMsg.senderUuid === myUuid);
+
             return (
-              <div
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
                 key={msg.id}
-                className="group flex flex-row-reverse px-4 py-[2px] transition-colors hover:bg-slate-800/50"
+                className={`group relative flex flex-col ${isCompact ? "mt-0.5" : "mt-4"} ${isHighlighted ? "bg-dreamy-blue/5 dark:bg-midnight-blue/5 -mx-2 px-2 rounded-2xl" : ""}`}
               >
-                <span className="text-[11px] font-medium text-slate-500 opacity-50">
-                  {msg.content}
-                </span>
-              </div>
-            );
-          }
-
-          const isMe = msg.senderUuid
-            ? msg.senderUuid === myUuid
-            : msg.senderId === myId;
-
-          const replyMsg = msg.replyToId
-            ? gameState.messages.find((m) => m.id === msg.replyToId)
-            : null;
-
-          // Check if previous message was from same user within 7 minutes
-          const prevMsg = idx > 0 ? gameState.messages[idx - 1] : null;
-          const isCompact =
-            prevMsg &&
-            !prevMsg.isSystem &&
-            (msg.senderUuid
-              ? prevMsg.senderUuid === msg.senderUuid
-              : prevMsg.senderId === msg.senderId) &&
-            msg.timestamp - prevMsg.timestamp < 420000 &&
-            !msg.replyToId; // Don't group if it's a reply
-
-          const isModNow = !!gameState.players.find(
-            (p) => p.uuid === msg.senderUuid || p.id === msg.senderId,
-          )?.isMod;
-          const wasModThen = !!msg.senderIsMod;
-          const isExMod = wasModThen && !isModNow;
-
-          // Mentions or Replies to me
-          const isMentioned = msg.content.includes(`@${myPlayerName}`);
-          const isReplyToMe = replyMsg && replyMsg.senderUuid === myUuid;
-          const isHighlighted = isMentioned || isReplyToMe;
-
-          return (
-            <div
-              key={msg.id}
-              className={`group relative flex flex-col px-2 ${isCompact ? "mt-0 py-[0.5px]" : "mt-3.5 py-[2px]"} transition-colors hover:bg-slate-800/10 ${idx === 0 ? "mt-2" : ""} ${isHighlighted ? "border-l-4 border-cyan-500/50 bg-cyan-900/10" : ""}`}
-            >
-              {/* Reply Reference Line */}
-              {replyMsg && (
-                <div className="ml-10 -mb-[2px] flex items-center gap-1 text-[13px] text-slate-400 opacity-80">
-                  <div className="w-[18px] h-[9px] border-l-2 border-t-2 border-slate-600 rounded-tl-[4px] mt-[10px] -mr-[1px]"></div>
-                  <div className="w-[14px] h-[14px] rounded-full bg-slate-700 flex-shrink-0 flex items-center justify-center -ml-[3px]">
-                    <Reply size={9} className="text-slate-300" />
+                {replyMsg && (
+                  <div className="ml-10 -mb-1 flex items-center gap-1.5 text-[10px] text-slate-700 dark:text-slate-400 font-bold">
+                    <div className="w-5 h-5 border-l-2 border-t-2 border-slate-400 dark:border-slate-600 rounded-tl-lg mt-2.5 flex-shrink-0" />
+                    <Reply
+                      size={12}
+                      className="text-slate-500 dark:text-slate-400"
+                    />
+                    <span className="font-black text-slate-600 dark:text-slate-300">
+                      @{replyMsg.senderName}:
+                    </span>
+                    <span className="truncate italic opacity-80 max-w-[150px] font-semibold">
+                      {replyMsg.content}
+                    </span>
                   </div>
-                  <span
-                    className={`font-semibold hover:underline cursor-pointer truncate max-w-[150px] ${replyMsg.senderUuid === myUuid ? "text-cyan-400" : ""}`}
-                  >
-                    @{replyMsg.senderName}
-                  </span>
-                  <span className="truncate opacity-50 italic text-[12px] ml-1">
-                    {replyMsg.content}
-                  </span>
-                </div>
-              )}
+                )}
 
-              <div className="flex gap-3">
-                {/* Avatar Column */}
-                <div className="flex-shrink-0 w-10 flex justify-center">
-                  {!isCompact ? (
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center text-slate-900 font-bold shadow-md ${
-                        isMe ? "bg-cyan-400" : "bg-slate-700 text-slate-100"
-                      }`}
-                    >
-                      {msg.senderName.charAt(0).toUpperCase()}
-                    </div>
-                  ) : (
-                    <div className="w-10 text-[10px] text-slate-600 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity leading-none">
-                      {formatTime(msg.timestamp)}
-                    </div>
-                  )}
-                </div>
-
-                {/* Content Column */}
-                <div className="flex-1 min-w-0 flex flex-col">
-                  {!isCompact && (
-                    <div className="flex items-center gap-2 mb-[1px]">
-                      <span
-                        className={`cursor-pointer text-sm font-semibold hover:underline ${isModNow ? "text-orange-400" : isMe ? "text-cyan-400" : "text-white"}`}
+                <div className="flex gap-3 items-start">
+                  <div className="shrink-0 w-10 h-10">
+                    {!isCompact ? (
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-base shadow-sm border-2 border-white dark:border-slate-700 transition-transform ${isMe ? "bg-dreamy-blue dark:bg-midnight-blue text-white dark:text-slate-900" : isModNow ? "bg-dreamy-yellow dark:bg-midnight-yellow text-slate-800" : "bg-white dark:bg-slate-800 text-dreamy-slate dark:text-midnight-text"}`}
                       >
-                        {msg.senderName}
-                      </span>
-                      {wasModThen && (
-                        <span
-                          className={`rounded-[3px] px-1 text-[10px] font-black uppercase tracking-tighter shadow-sm ${isModNow ? "bg-orange-400 text-slate-900" : "bg-slate-600 text-slate-300 opacity-60"}`}
-                          title={isExMod ? "Former Mod" : "Moderator"}
-                        >
-                          MOD
-                        </span>
-                      )}
-                      <span className="text-[11px] text-slate-500 font-medium">
+                        {msg.senderName.charAt(0).toUpperCase()}
+                      </div>
+                    ) : (
+                      <div className="w-10 text-[9px] font-black text-slate-500 dark:text-slate-400 opacity-100 transition-opacity text-center mt-1 uppercase tracking-tighter">
                         {formatTime(msg.timestamp)}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="text-[15px] leading-[1.3rem] text-slate-200 break-words">
-                    {renderContent(msg)}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Reactions Display */}
-                  {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {Object.entries(msg.reactions).map(([emoji, users]) => {
-                        const iReacted = users.includes(myId);
-                        return (
-                          <button
-                            key={emoji}
-                            onClick={() =>
-                              iReacted
-                                ? onRemoveReact(msg.id, emoji)
-                                : onReact(msg.id, emoji)
-                            }
-                            className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-[4px] text-[13px] font-bold transition-all border ${
-                              iReacted
-                                ? "bg-cyan-500/20 border-cyan-500 text-cyan-400"
-                                : "bg-slate-800 border-transparent hover:border-slate-600 text-slate-400"
-                            }`}
-                          >
-                            <span>{emoji}</span>
-                            <span className="text-xs">{users.length}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    {!isCompact && (
+                      <div className="flex items-center gap-2 mb-0.5 mt-0.5">
+                        <span
+                          className={`text-sm font-black tracking-tight ${isMe ? "text-blue-800 dark:text-midnight-blue" : isModNow ? "text-amber-800 dark:text-midnight-yellow" : "text-slate-900 dark:text-midnight-text"}`}
+                        >
+                          {msg.senderName}
+                        </span>
+                        {isModNow && (
+                          <span className="bg-amber-600/90 dark:bg-midnight-yellow/80 text-white dark:text-slate-900 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md shadow-sm">
+                            MOD
+                          </span>
+                        )}
+                        <span className="text-[9px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">
+                          {formatTime(msg.timestamp)}
+                        </span>
+                      </div>
+                    )}
 
-              {/* Action Toolbar on Hover */}
-              <div className="absolute -top-3 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                <div className="flex items-center bg-slate-800 border border-slate-700 rounded-[4px] shadow-lg overflow-hidden h-[32px]">
-                  <button
-                    onClick={() =>
-                      setShowEmojiPickerFor(
-                        showEmojiPickerFor === msg.id ? null : msg.id,
-                      )
-                    }
-                    className="w-8 h-full flex items-center justify-center hover:bg-slate-700 text-slate-300 hover:text-white transition-colors border-r border-slate-700"
-                    title="Add Reaction"
-                  >
-                    <Smile size={18} />
-                  </button>
-                  <button
-                    onClick={() => setReplyingTo(msg)}
-                    className="w-8 h-full flex items-center justify-center hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-                    title="Reply"
-                  >
-                    <Reply size={18} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Inline Emoji Picker */}
-              {showEmojiPickerFor === msg.id && (
-                <div className="absolute right-4 top-6 z-20 bg-slate-800 border border-slate-700 p-1.5 rounded-lg shadow-2xl flex gap-1 animate-in zoom-in-95 duration-75 origin-top-right">
-                  {emojiList.map((emoji) => (
-                    <button
-                      key={emoji}
-                      onClick={() => {
-                        onReact(msg.id, emoji);
-                        setShowEmojiPickerFor(null);
-                      }}
-                      className="hover:scale-125 hover:bg-slate-700 p-1.5 rounded transition-all text-xl"
+                    <div
+                      className={`relative px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-sm border-2 transition-all ${isMe ? "bg-white dark:bg-slate-900 border-white dark:border-slate-800 text-dreamy-dark dark:text-midnight-text rounded-tl-none" : "bg-white/80 dark:bg-slate-800/80 border-white/60 dark:border-slate-700/60 text-dreamy-dark dark:text-midnight-text rounded-tl-none"}`}
                     >
-                      {emoji}
-                    </button>
-                  ))}
+                      {renderContent(msg)}
+
+                      {/* Reactions display right-aligned below bubble */}
+                      {msg.reactions &&
+                        Object.keys(msg.reactions).length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2 -mb-1">
+                            {Object.entries(msg.reactions).map(
+                              ([emoji, users]) => {
+                                const iReacted = users.includes(myId);
+                                return (
+                                  <button
+                                    key={emoji}
+                                    onClick={() =>
+                                      iReacted
+                                        ? onRemoveReact(msg.id, emoji)
+                                        : onReact(msg.id, emoji)
+                                    }
+                                    className={`flex items-center gap-1.5 px-2 py-1 rounded-xl text-xs font-black border-2 transition-all active:scale-90 ${iReacted ? "bg-dreamy-blue/20 dark:bg-midnight-blue/20 border-dreamy-blue/30 dark:border-midnight-blue/40 text-dreamy-blue dark:text-midnight-blue" : "bg-white dark:bg-slate-900 border-white dark:border-slate-800 text-dreamy-slate dark:text-slate-400"}`}
+                                  >
+                                    {emoji}{" "}
+                                    <span className="opacity-80">
+                                      {users.length}
+                                    </span>
+                                  </button>
+                                );
+                              },
+                            )}
+                          </div>
+                        )}
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-          );
-        })}
-        <div ref={endRef} className="h-4" />
+
+                {/* Quick Action Bar */}
+                <div className="absolute -top-4 right-0 transition-all z-10">
+                  <div className="flex items-center glass-card bg-white dark:bg-slate-800 rounded-2xl shadow-lg border-2 border-white dark:border-slate-700 overflow-hidden h-9 p-1 gap-1">
+                    <button
+                      onClick={() =>
+                        setShowEmojiPickerFor(
+                          showEmojiPickerFor === msg.id ? null : msg.id,
+                        )
+                      }
+                      className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 dark:text-slate-500 transition-all active:bg-slate-50 dark:active:bg-slate-700"
+                      title="React"
+                    >
+                      <Smile size={18} />
+                    </button>
+                    <button
+                      onClick={() => setReplyingTo(msg)}
+                      className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 dark:text-slate-500 transition-all active:bg-slate-50 dark:active:bg-slate-700"
+                      title="Reply"
+                    >
+                      <Reply size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bubble Emoji Picker */}
+                <AnimatePresence>
+                  {showEmojiPickerFor === msg.id && (
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0, y: 10 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      exit={{ scale: 0.8, opacity: 0, y: 10 }}
+                      className="absolute right-0 top-8 z-20 glass-card bg-white dark:bg-slate-800 border-2 border-white dark:border-slate-700 p-2 rounded-3xl shadow-2xl flex flex-wrap gap-1 max-w-[160px] justify-center"
+                    >
+                      {emojiList.map((emoji) => (
+                        <button
+                          key={emoji}
+                          onClick={() => {
+                            onReact(msg.id, emoji);
+                            setShowEmojiPickerFor(null);
+                          }}
+                          className="active:scale-125 active:bg-slate-50 dark:active:bg-slate-700 w-8 h-8 flex items-center justify-center rounded-xl transition-all text-lg"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </div>
 
-      {/* Input Container */}
-      <div className="px-1 pb-2 pt-1 bg-slate-900">
+      <div className="mx-2 mb-2 p-1.5 glass-card border-2 border-white dark:border-slate-800 relative z-40 rounded-2xl shadow-xl bg-white/80 dark:bg-slate-900/80">
         {replyingTo && (
-          <div className="px-4 py-1.5 bg-slate-800/50 border-l-2 border-cyan-500 rounded-t-lg flex items-center justify-between text-[11px] animate-in slide-in-from-bottom-2 mx-1">
-            <div className="flex items-center gap-2 text-slate-400 overflow-hidden">
-              <span className="opacity-60">Replying to</span>
-              <span className="text-white font-bold">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-slate-200/90 dark:bg-slate-800/90 border border-slate-300 dark:border-slate-700 mb-1.5 rounded-xl shadow-sm animate-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-2 text-[10px] text-slate-800 dark:text-slate-300 font-bold truncate">
+              <Reply size={14} className="text-slate-500" />
+              <span className="text-slate-600 dark:text-slate-400 font-black">
+                Replying to{" "}
+              </span>
+              <span className="font-black text-blue-800 dark:text-midnight-blue">
                 @{replyingTo.senderName}
               </span>
-              <span className="truncate opacity-40 italic">
-                {replyingTo.content}
-              </span>
+              {replyingTo.content && (
+                <span className="truncate italic opacity-70 ml-1 font-semibold">
+                  "{replyingTo.content}"
+                </span>
+              )}
             </div>
             <button
               onClick={() => setReplyingTo(null)}
-              className="p-1 text-slate-500 hover:text-white transition-colors bg-slate-700/50 rounded-full"
+              className="w-6 h-6 flex items-center justify-center text-slate-500 dark:text-slate-400 transition-all active:scale-90"
             >
-              <X size={12} />
+              <X size={14} />
             </button>
           </div>
         )}
         <form
           onSubmit={handleSend}
-          className={`relative mx-1 flex items-center bg-[#383a40] rounded-lg px-4 gap-2 min-h-[44px] ${replyingTo ? "rounded-t-none border-t border-slate-700/20" : ""}`}
+          className="flex items-center bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-1 py-1 gap-1 shadow-inner"
         >
+          <div className="w-9 h-9 flex items-center justify-center text-dreamy-slate/30 ml-1">
+            <Smile size={20} />
+          </div>
           <input
-            className="flex-1 bg-transparent border-none py-3 text-slate-100 placeholder-slate-500 focus:outline-none text-[16px]"
-            placeholder={
-              replyingTo
-                ? `Replying to ${replyingTo.senderName}...`
-                : "Type a message..."
-            }
+            ref={inputRef}
+            type="text"
+            name="chat_message"
+            inputMode="text"
+            autoComplete="one-time-code"
+            autoCorrect="off"
+            autoCapitalize="sentences"
+            spellCheck="true"
+            className="flex-1 bg-transparent py-2.5 text-dreamy-dark dark:text-midnight-text font-black placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none text-sm"
+            placeholder={replyingTo ? "Compose reply..." : "Say something..."}
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
 
-          <div className="flex items-center gap-2">
-            <button
-              type="submit"
-              disabled={!input.trim() && !replyingTo}
-              className={`p-1.5 rounded-md transition-all ${
-                input.trim() || replyingTo
-                  ? "text-cyan-400 hover:bg-cyan-500/10 scale-105"
-                  : "text-slate-600 opacity-40 cursor-not-allowed"
-              }`}
-            >
-              <Send size={20} />
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={!input.trim() && !replyingTo}
+            onMouseDown={(e) => {
+              if (input.trim() || replyingTo) {
+                handleSend(e as any);
+                e.preventDefault();
+              }
+            }}
+            className={`w-10 h-10 flex items-center justify-center rounded-2xl transition-all shadow-sm ${
+              input.trim() || replyingTo
+                ? "bg-dreamy-blue dark:bg-midnight-blue text-white dark:text-slate-900 active:scale-95 shadow-dreamy-blue/20 dark:shadow-midnight-blue/20"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-200 dark:text-slate-600 cursor-not-allowed"
+            }`}
+          >
+            <Send
+              size={18}
+              className={input.trim() ? "translate-x-0.5 -translate-y-0.5" : ""}
+            />
+          </button>
         </form>
       </div>
     </div>
@@ -461,19 +555,18 @@ const ModDecisionButton: React.FC<{
   return (
     <button
       onClick={handleInteraction}
-      className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-black text-[11px] tracking-wider transition-all duration-300 uppercase ${
+      className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-black text-[10px] tracking-widest transition-all duration-300 uppercase shadow-sm border-2 ${
         type === "APPROVE"
           ? isArmed
-            ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/50 scale-[1.02] active:scale-95"
-            : "bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/30 shadow-sm"
+            ? "bg-dreamy-blue dark:bg-midnight-blue text-white dark:text-slate-900 border-white dark:border-slate-800 scale-105"
+            : "bg-dreamy-blue/10 dark:bg-midnight-blue/10 text-dreamy-blue dark:text-midnight-blue border-white dark:border-slate-800"
           : isArmed
-            ? "bg-red-500 text-white shadow-lg shadow-red-500/50 scale-[1.02] active:scale-95"
-            : "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30 shadow-sm"
+            ? "bg-red-400 dark:bg-red-600 text-white dark:text-slate-900 border-white dark:border-slate-800 scale-105"
+            : "bg-red-50 dark:bg-red-900/20 text-red-200 dark:text-red-400 border-white dark:border-slate-800"
       }`}
-      title={isArmed ? "Confirm Action" : `Mod ${type}`}
     >
       {type === "APPROVE" ? <Check size={14} /> : <Ban size={14} />}
-      <span>{isArmed ? "SURE?" : `FORCE ${type}`}</span>
+      <span>{isArmed ? "YES!" : `MOD ${type}`}</span>
     </button>
   );
 };

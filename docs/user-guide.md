@@ -36,18 +36,20 @@ The interface is divided into three main tabs:
 
 Tap the **Join Queue** button to see your options:
 
-- **Duo Match:** Join the queue alone. You will be automatically paired with the next available person in the Match queue.
-- **With Partner:** Select a friend who is already in the session to join the queue together as a fixed pair.
+- **Duo Match:** Join the queue alone. You will be automatically paired with another person in the Match queue. **Note:** Match entries only move to the stage once a pair is formed.
+- **With Partner:** Select a friend who is already in the session to join the queue together as a fixed pair. These entries move to the stage automatically when it is their turn.
 - **Solo Play:** Request to play alone.
-  - **Auto-Approval:** If there are 4 or fewer players in the session, solo requests are granted immediately.
-  - **Voting:** If there are more than 4 players, a vote is triggered. >50% of the room must approve your request in the Chat tab.
+  - **Auto-Approval:** If there are 4 or fewer players in the session, solo requests are granted immediately and the entry moves to the stage automatically when it is their turn.
+  - **Voting:** If there are more than 4 players, a vote is triggered. >50% of the room must approve your request in the Chat tab. Once approved, it joins the queue.
 
 ---
 
 ## Gameplay Flow
 
 1. **Waiting:** Your name appears in the queue. You can see your position and who you are paired with.
-2. **Up Next:** When you reach the top, wait for the "Currently Playing" banner to clear.
+2. **Auto-Advance:** The system automatically moves the front of the queue to "On Stage" as soon as the previous session is finished and the requirements are met:
+   - **SOLO/PARTNER:** Moves immediately if at the front and stage is empty.
+   - **MATCH:** Moves only once a second player joins the matching group.
 3. **Playing:** When it is your turn, a notification will appear, and your name will be highlighted in the top banner.
 4. **Finish:** Once your game is done, tap **Finish Turn**.
 5. **Leaving:** To leave the queue or the session, you must **double-tap** the Leave button. The first tap "arms" the button, and the second tap confirms the action.

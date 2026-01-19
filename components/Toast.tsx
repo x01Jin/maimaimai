@@ -13,7 +13,7 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({
   onDismiss,
 }) => {
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 p-4 pointer-events-none flex flex-col items-center gap-2 safe-area-top">
+    <div className="fixed top-4 left-0 right-0 z-[100] p-4 pointer-events-none flex flex-col items-center gap-3 safe-area-top">
       <AnimatePresence>
         {notifications.map((n) => (
           <Toast key={n.id} notification={n} onDismiss={onDismiss} />
@@ -39,54 +39,53 @@ const Toast: React.FC<{
   const getIcon = () => {
     switch (notification.type) {
       case "success":
-        return <CheckCircle size={20} className="text-green-400" />;
+        return <CheckCircle size={20} className="text-emerald-500" />;
       case "warning":
-        return <AlertTriangle size={20} className="text-yellow-400" />;
+        return <AlertTriangle size={20} className="text-amber-500" />;
       case "error":
-        return <XCircle size={20} className="text-red-400" />;
+        return <XCircle size={20} className="text-red-500" />;
       default:
-        return <Info size={20} className="text-cyan-400" />;
+        return <Info size={20} className="text-dreamy-blue" />;
     }
   };
 
   const getStyles = () => {
     switch (notification.type) {
       case "success":
-        return "bg-slate-800 border-green-500/50 shadow-green-500/10";
+        return "border-emerald-200/50 dark:border-emerald-500/30";
       case "warning":
-        return "bg-slate-800 border-yellow-500/50 shadow-yellow-500/10";
+        return "border-amber-200/50 dark:border-amber-500/30";
       case "error":
-        return "bg-slate-800 border-red-500/50 shadow-red-500/10";
+        return "border-red-200/50 dark:border-red-500/30";
       default:
-        return "bg-slate-800 border-cyan-500/50 shadow-cyan-500/10";
+        return "border-dreamy-blue/30 dark:border-midnight-blue/40";
     }
   };
 
   return (
     <motion.div
-      initial={{ y: -50, opacity: 0, scale: 0.9 }}
+      initial={{ y: -20, opacity: 0, scale: 0.9 }}
       animate={{ y: 0, opacity: 1, scale: 1 }}
-      exit={{ x: 100, opacity: 0, scale: 0.9 }}
+      exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
+      layout
       drag="x"
-      dragConstraints={{ left: 0, right: 300 }}
-      dragElastic={0.7}
+      dragConstraints={{ left: -100, right: 100 }}
       onDragEnd={(_, info) => {
-        if (info.offset.x > 100) {
+        if (Math.abs(info.offset.x) > 80) {
           onDismiss(notification.id);
         }
       }}
-      layout
-      className={`pointer-events-auto w-full max-w-sm rounded-xl border p-4 shadow-lg flex items-center gap-3 backdrop-blur-sm cursor-grab active:cursor-grabbing ${getStyles()}`}
+      className={`pointer-events-auto w-full max-w-[280px] glass-card rounded-2xl border-2 p-3 shadow-lg flex items-center gap-3 cursor-grab active:cursor-grabbing ${getStyles()}`}
     >
       <div className="shrink-0">{getIcon()}</div>
-      <div className="flex-1 text-sm font-medium text-white break-words">
+      <div className="flex-1 text-sm font-black text-dreamy-dark dark:text-midnight-text break-words">
         {notification.message}
       </div>
       <button
         onClick={() => onDismiss(notification.id)}
-        className="p-1 hover:bg-white/10 rounded-full transition-colors shrink-0 text-slate-400 hover:text-white"
+        className="p-1.5 rounded-full transition-colors shrink-0 text-slate-400 dark:text-slate-500 active:scale-90"
       >
-        <X size={16} />
+        <X size={14} />
       </button>
     </motion.div>
   );

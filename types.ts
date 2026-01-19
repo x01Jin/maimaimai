@@ -47,6 +47,10 @@ export interface Vote {
   required: number;
 
   createdAt: number;
+
+  type: "SOLO" | "DEMOTE_MOD";
+
+  targetId?: string;
 }
 
 export interface ChatMessage {
@@ -69,7 +73,7 @@ export interface ChatMessage {
   reactions?: Record<string, string[]>; // emoji -> list of player IDs
 
   senderIsMod?: boolean;
-  type?: "text";
+  type?: "text" | "image" | "gif";
 
   metadata?: {
     alt?: string;
@@ -137,7 +141,7 @@ export type ClientAction =
         senderName: string;
         messageId: string;
         replyToId?: string;
-        type?: "text";
+        type?: "text" | "image" | "gif";
         metadata?: ChatMessage["metadata"];
       };
     }
