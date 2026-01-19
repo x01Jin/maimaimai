@@ -52,13 +52,13 @@ const Toast: React.FC<{
   const getStyles = () => {
     switch (notification.type) {
       case "success":
-        return "border-emerald-200/50";
+        return "border-emerald-200/50 dark:border-emerald-500/30";
       case "warning":
-        return "border-amber-200/50";
+        return "border-amber-200/50 dark:border-amber-500/30";
       case "error":
-        return "border-red-200/50";
+        return "border-red-200/50 dark:border-red-500/30";
       default:
-        return "border-dreamy-blue/30";
+        return "border-dreamy-blue/30 dark:border-midnight-blue/40";
     }
   };
 
@@ -78,12 +78,12 @@ const Toast: React.FC<{
       className={`pointer-events-auto w-full max-w-[280px] glass-card rounded-2xl border-2 p-3 shadow-lg flex items-center gap-3 cursor-grab active:cursor-grabbing ${getStyles()}`}
     >
       <div className="shrink-0">{getIcon()}</div>
-      <div className="flex-1 text-sm font-black text-dreamy-dark break-words">
+      <div className="flex-1 text-sm font-black text-dreamy-dark dark:text-midnight-text break-words">
         {notification.message}
       </div>
       <button
         onClick={() => onDismiss(notification.id)}
-        className="p-1.5 hover:bg-white/50 rounded-full transition-colors shrink-0 text-slate-400 hover:text-dreamy-dark"
+        className="p-1.5 rounded-full transition-colors shrink-0 text-slate-400 dark:text-slate-500 active:scale-90"
       >
         <X size={14} />
       </button>

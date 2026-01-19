@@ -29,20 +29,20 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variants = {
     primary:
-      "bg-dreamy-blue text-slate-700 hover:brightness-105 shadow-md shadow-dreamy-blue/20",
+      "bg-dreamy-blue text-slate-700 dark:bg-midnight-blue dark:text-slate-900 shadow-md shadow-dreamy-blue/20",
     secondary:
-      "bg-dreamy-pink text-slate-700 hover:brightness-105 shadow-md shadow-dreamy-pink/20",
+      "bg-dreamy-pink text-slate-700 dark:bg-midnight-pink dark:text-slate-900 shadow-md shadow-dreamy-pink/20",
     accent:
-      "bg-dreamy-purple text-white hover:brightness-105 shadow-md shadow-dreamy-purple/20",
-    danger: "bg-red-400 text-white hover:bg-red-300",
-    ghost: "bg-white/40 text-slate-600 hover:bg-white/60 backdrop-blur-sm",
+      "bg-dreamy-purple text-white dark:bg-midnight-purple dark:text-slate-900 shadow-md shadow-dreamy-purple/20",
+    danger: "bg-red-400 text-white dark:bg-red-500",
+    ghost:
+      "bg-white/40 text-slate-600 dark:bg-slate-800/40 dark:text-slate-200 backdrop-blur-sm",
     success:
-      "bg-dreamy-green text-slate-700 hover:brightness-105 shadow-md shadow-dreamy-green/20",
+      "bg-dreamy-green text-slate-700 dark:bg-midnight-green dark:text-slate-900 shadow-md shadow-dreamy-green/20",
   };
 
   return (
     <motion.button
-      whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       transition={{ type: "spring", stiffness: 400, damping: 17 }}
       className={`${baseStyles} ${sizeStyles[size]} ${variants[variant]} ${fullWidth ? "w-full" : ""} ${className}`}

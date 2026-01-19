@@ -29,22 +29,22 @@ export class ErrorBoundary extends Component<
 
     if (hasError) {
       return (
-        <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-6 bg-white/30 backdrop-blur-xl rounded-4xl border-2 border-white shadow-2xl m-4">
-          <div className="w-20 h-20 bg-red-100 text-red-500 rounded-3xl flex items-center justify-center animate-bounce shadow-inner">
+        <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-6 bg-white/30 dark:bg-slate-900/40 backdrop-blur-xl rounded-4xl border-2 border-white dark:border-slate-800 shadow-2xl m-4">
+          <div className="w-20 h-20 bg-red-100 dark:bg-red-900/40 text-red-500 dark:text-red-400 rounded-3xl flex items-center justify-center animate-bounce shadow-inner">
             <LogOut size={40} className="rotate-90" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight">
+            <h2 className="text-2xl font-black text-slate-800 dark:text-midnight-text tracking-tight">
               Interface Glitch
             </h2>
-            <p className="text-slate-500 font-medium text-sm leading-relaxed">
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm leading-relaxed">
               Something went wrong while rendering this tab. You can try
               reloading the interface.
             </p>
           </div>
           <button
             onClick={() => window.location.reload()}
-            className="px-8 py-4 bg-dreamy-blue text-white rounded-2xl font-black shadow-lg shadow-dreamy-blue/20 active:scale-95 transition-all text-sm uppercase tracking-widest"
+            className="px-8 py-4 bg-dreamy-blue dark:bg-midnight-blue text-white dark:text-slate-900 rounded-2xl font-black shadow-lg shadow-dreamy-blue/20 dark:shadow-midnight-blue/20 active:scale-95 transition-all text-sm uppercase tracking-widest"
           >
             Refresh Service
           </button>

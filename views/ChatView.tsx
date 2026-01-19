@@ -139,7 +139,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               return (
                 <span
                   key={i}
-                  className={`font-black px-1.5 py-0.5 rounded-lg ${isMe ? "text-white bg-dreamy-blue" : "text-dreamy-blue bg-dreamy-blue/10 border border-dreamy-blue/20"}`}
+                  className={`font-black px-1.5 py-0.5 rounded-lg ${isMe ? "text-white dark:text-slate-900 bg-dreamy-blue dark:bg-midnight-blue" : "text-dreamy-blue dark:text-midnight-blue bg-dreamy-blue/10 dark:bg-midnight-blue/10 border border-dreamy-blue/20 dark:border-midnight-blue/20"}`}
                 >
                   {part}
                 </span>
@@ -172,11 +172,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
             exit={{ y: -100, opacity: 0 }}
             className="absolute top-4 left-4 right-4 z-30"
           >
-            <div className="glass-card rounded-3xl p-3 shadow-xl border-2 border-white flex flex-col gap-2.5">
+            <div className="glass-card rounded-3xl p-3 shadow-xl border-2 border-white dark:border-slate-800 flex flex-col gap-2.5">
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-2.5">
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 border-white shadow-sm ${activeVote.type === "DEMOTE_MOD" ? "bg-red-100 text-red-500" : "bg-dreamy-yellow/10 text-dreamy-yellow"}`}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 border-white dark:border-slate-700 shadow-sm ${activeVote.type === "DEMOTE_MOD" ? "bg-red-100 dark:bg-red-900/30 text-red-500" : "bg-dreamy-yellow/10 dark:bg-midnight-yellow/10 text-dreamy-yellow dark:text-midnight-yellow"}`}
                   >
                     {activeVote.type === "DEMOTE_MOD" ? (
                       <Ban size={20} />
@@ -185,24 +185,26 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     )}
                   </div>
                   <div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-dreamy-dark mb-0.5">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-dreamy-dark dark:text-midnight-text mb-0.5">
                       {activeVote.type === "DEMOTE_MOD"
                         ? "Mod Demotion!"
                         : "Solo Request!"}
                     </div>
-                    <div className="font-black text-dreamy-dark leading-tight">
+                    <div className="font-black text-dreamy-dark dark:text-midnight-text leading-tight">
                       {activeVote.requesterName}
                     </div>
                   </div>
                 </div>
 
-                <div className="text-right glass-card bg-white px-2.5 py-1 rounded-xl border-white border">
-                  <div className="text-[8px] font-black text-dreamy-slate uppercase tracking-widest leading-none mb-1">
+                <div className="text-right glass-card bg-white dark:bg-slate-800 px-2.5 py-1 rounded-xl border-white dark:border-slate-700 border">
+                  <div className="text-[8px] font-black text-dreamy-slate dark:text-slate-400 uppercase tracking-widest leading-none mb-1">
                     YES
                   </div>
-                  <div className="text-lg font-black text-dreamy-dark leading-none tabular-nums flex items-center gap-1 justify-end">
+                  <div className="text-lg font-black text-dreamy-dark dark:text-midnight-text leading-none tabular-nums flex items-center gap-1 justify-end">
                     {activeVote.approvals.length}
-                    <span className="text-slate-400 text-xs">/</span>
+                    <span className="text-slate-400 dark:text-slate-500 text-xs">
+                      /
+                    </span>
                     {activeVote.required}
                   </div>
                 </div>
@@ -214,10 +216,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     activeVote.requesterId !== myId) && (
                     <button
                       onClick={() => onVote(true)}
-                      className={`flex-1 text-white hover:opacity-90 active:scale-95 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg ${
+                      className={`flex-1 text-white dark:text-slate-900 active:scale-95 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg ${
                         activeVote.type === "DEMOTE_MOD"
-                          ? "bg-red-500 shadow-red-500/20"
-                          : "bg-dreamy-green shadow-dreamy-green/20"
+                          ? "bg-red-500 dark:bg-red-600 shadow-red-500/20 dark:shadow-red-900/20"
+                          : "bg-dreamy-green dark:bg-midnight-green shadow-dreamy-green/20 dark:shadow-midnight-green/20"
                       }`}
                     >
                       {activeVote.type === "DEMOTE_MOD"
@@ -294,7 +296,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             if (msg.isSystem) {
               return (
                 <div key={msg.id} className="flex justify-center my-3">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-white bg-slate-900/60 px-4 py-1.5 rounded-full backdrop-blur-md border border-white/10 shadow-sm">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white dark:text-slate-300 bg-slate-900/60 dark:bg-slate-800/80 px-4 py-1.5 rounded-full backdrop-blur-md border border-white/10 dark:border-slate-700/50 shadow-sm">
                     {msg.content}
                   </span>
                 </div>
@@ -329,13 +331,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 key={msg.id}
-                className={`group relative flex flex-col ${isCompact ? "mt-0.5" : "mt-4"} ${isHighlighted ? "bg-dreamy-blue/5 -mx-2 px-2 rounded-2xl" : ""}`}
+                className={`group relative flex flex-col ${isCompact ? "mt-0.5" : "mt-4"} ${isHighlighted ? "bg-dreamy-blue/5 dark:bg-midnight-blue/5 -mx-2 px-2 rounded-2xl" : ""}`}
               >
                 {replyMsg && (
-                  <div className="ml-10 -mb-1 flex items-center gap-1.5 text-[10px] text-slate-700 font-bold">
-                    <div className="w-5 h-5 border-l-2 border-t-2 border-slate-400 rounded-tl-lg mt-2.5 flex-shrink-0" />
-                    <Reply size={12} className="text-slate-500" />
-                    <span className="font-black text-slate-600">
+                  <div className="ml-10 -mb-1 flex items-center gap-1.5 text-[10px] text-slate-700 dark:text-slate-400 font-bold">
+                    <div className="w-5 h-5 border-l-2 border-t-2 border-slate-400 dark:border-slate-600 rounded-tl-lg mt-2.5 flex-shrink-0" />
+                    <Reply
+                      size={12}
+                      className="text-slate-500 dark:text-slate-400"
+                    />
+                    <span className="font-black text-slate-600 dark:text-slate-300">
                       @{replyMsg.senderName}:
                     </span>
                     <span className="truncate italic opacity-80 max-w-[150px] font-semibold">
@@ -348,12 +353,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   <div className="shrink-0 w-10 h-10">
                     {!isCompact ? (
                       <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-base shadow-sm border-2 border-white transition-transform group-hover:scale-105 ${isMe ? "bg-dreamy-blue text-white" : isModNow ? "bg-dreamy-yellow text-slate-800" : "bg-white text-dreamy-slate"}`}
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-base shadow-sm border-2 border-white dark:border-slate-700 transition-transform ${isMe ? "bg-dreamy-blue dark:bg-midnight-blue text-white dark:text-slate-900" : isModNow ? "bg-dreamy-yellow dark:bg-midnight-yellow text-slate-800" : "bg-white dark:bg-slate-800 text-dreamy-slate dark:text-midnight-text"}`}
                       >
                         {msg.senderName.charAt(0).toUpperCase()}
                       </div>
                     ) : (
-                      <div className="w-10 text-[9px] font-black text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity text-center mt-1 uppercase tracking-tighter">
+                      <div className="w-10 text-[9px] font-black text-slate-500 dark:text-slate-400 opacity-100 transition-opacity text-center mt-1 uppercase tracking-tighter">
                         {formatTime(msg.timestamp)}
                       </div>
                     )}
@@ -363,23 +368,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     {!isCompact && (
                       <div className="flex items-center gap-2 mb-0.5 mt-0.5">
                         <span
-                          className={`text-sm font-black tracking-tight ${isMe ? "text-blue-800" : isModNow ? "text-amber-800" : "text-slate-900"}`}
+                          className={`text-sm font-black tracking-tight ${isMe ? "text-blue-800 dark:text-midnight-blue" : isModNow ? "text-amber-800 dark:text-midnight-yellow" : "text-slate-900 dark:text-midnight-text"}`}
                         >
                           {msg.senderName}
                         </span>
                         {isModNow && (
-                          <span className="bg-amber-600/90 text-white text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md shadow-sm">
+                          <span className="bg-amber-600/90 dark:bg-midnight-yellow/80 text-white dark:text-slate-900 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md shadow-sm">
                             MOD
                           </span>
                         )}
-                        <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">
+                        <span className="text-[9px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">
                           {formatTime(msg.timestamp)}
                         </span>
                       </div>
                     )}
 
                     <div
-                      className={`relative px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-sm border-2 transition-all ${isMe ? "bg-white border-white text-dreamy-dark rounded-tl-none" : "bg-white/80 border-white/60 text-dreamy-dark rounded-tl-none"}`}
+                      className={`relative px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-sm border-2 transition-all ${isMe ? "bg-white dark:bg-slate-900 border-white dark:border-slate-800 text-dreamy-dark dark:text-midnight-text rounded-tl-none" : "bg-white/80 dark:bg-slate-800/80 border-white/60 dark:border-slate-700/60 text-dreamy-dark dark:text-midnight-text rounded-tl-none"}`}
                     >
                       {renderContent(msg)}
 
@@ -398,7 +403,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                         ? onRemoveReact(msg.id, emoji)
                                         : onReact(msg.id, emoji)
                                     }
-                                    className={`flex items-center gap-1.5 px-2 py-1 rounded-xl text-xs font-black border-2 transition-all active:scale-90 ${iReacted ? "bg-dreamy-blue/20 border-dreamy-blue/30 text-dreamy-blue" : "bg-white border-white text-dreamy-slate hover:border-slate-100"}`}
+                                    className={`flex items-center gap-1.5 px-2 py-1 rounded-xl text-xs font-black border-2 transition-all active:scale-90 ${iReacted ? "bg-dreamy-blue/20 dark:bg-midnight-blue/20 border-dreamy-blue/30 dark:border-midnight-blue/40 text-dreamy-blue dark:text-midnight-blue" : "bg-white dark:bg-slate-900 border-white dark:border-slate-800 text-dreamy-slate dark:text-slate-400"}`}
                                   >
                                     {emoji}{" "}
                                     <span className="opacity-80">
@@ -414,23 +419,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   </div>
                 </div>
 
-                {/* Quick Action Bar on Hover */}
-                <div className="absolute -top-4 right-0 opacity-0 group-hover:opacity-100 transition-all z-10 translate-y-2 group-hover:translate-y-0">
-                  <div className="flex items-center glass-card bg-white rounded-2xl shadow-lg border-2 border-white overflow-hidden h-9 p-1 gap-1">
+                {/* Quick Action Bar */}
+                <div className="absolute -top-4 right-0 transition-all z-10">
+                  <div className="flex items-center glass-card bg-white dark:bg-slate-800 rounded-2xl shadow-lg border-2 border-white dark:border-slate-700 overflow-hidden h-9 p-1 gap-1">
                     <button
                       onClick={() =>
                         setShowEmojiPickerFor(
                           showEmojiPickerFor === msg.id ? null : msg.id,
                         )
                       }
-                      className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-50 text-slate-400 hover:text-dreamy-yellow transition-all"
+                      className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 dark:text-slate-500 transition-all active:bg-slate-50 dark:active:bg-slate-700"
                       title="React"
                     >
                       <Smile size={18} />
                     </button>
                     <button
                       onClick={() => setReplyingTo(msg)}
-                      className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-50 text-slate-400 hover:text-dreamy-pink transition-all"
+                      className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 dark:text-slate-500 transition-all active:bg-slate-50 dark:active:bg-slate-700"
                       title="Reply"
                     >
                       <Reply size={18} />
@@ -445,7 +450,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       initial={{ scale: 0.8, opacity: 0, y: 10 }}
                       animate={{ scale: 1, opacity: 1, y: 0 }}
                       exit={{ scale: 0.8, opacity: 0, y: 10 }}
-                      className="absolute right-0 top-8 z-20 glass-card bg-white border-2 border-white p-2 rounded-3xl shadow-2xl flex flex-wrap gap-1 max-w-[160px] justify-center"
+                      className="absolute right-0 top-8 z-20 glass-card bg-white dark:bg-slate-800 border-2 border-white dark:border-slate-700 p-2 rounded-3xl shadow-2xl flex flex-wrap gap-1 max-w-[160px] justify-center"
                     >
                       {emojiList.map((emoji) => (
                         <button
@@ -454,7 +459,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             onReact(msg.id, emoji);
                             setShowEmojiPickerFor(null);
                           }}
-                          className="hover:scale-125 hover:bg-slate-50 w-8 h-8 flex items-center justify-center rounded-xl transition-all text-lg"
+                          className="active:scale-125 active:bg-slate-50 dark:active:bg-slate-700 w-8 h-8 flex items-center justify-center rounded-xl transition-all text-lg"
                         >
                           {emoji}
                         </button>
@@ -468,13 +473,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </AnimatePresence>
       </div>
 
-      <div className="mx-2 mb-2 p-1.5 glass-card border-2 border-white relative z-40 rounded-2xl shadow-xl">
+      <div className="mx-2 mb-2 p-1.5 glass-card border-2 border-white dark:border-slate-800 relative z-40 rounded-2xl shadow-xl bg-white/80 dark:bg-slate-900/80">
         {replyingTo && (
-          <div className="flex items-center justify-between px-3 py-1.5 bg-slate-200/90 border border-slate-300 mb-1.5 rounded-xl shadow-sm animate-in slide-in-from-bottom-2">
-            <div className="flex items-center gap-2 text-[10px] text-slate-800 font-bold truncate">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-slate-200/90 dark:bg-slate-800/90 border border-slate-300 dark:border-slate-700 mb-1.5 rounded-xl shadow-sm animate-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-2 text-[10px] text-slate-800 dark:text-slate-300 font-bold truncate">
               <Reply size={14} className="text-slate-500" />
-              <span className="text-slate-600 font-black">Replying to </span>
-              <span className="font-black text-blue-800">
+              <span className="text-slate-600 dark:text-slate-400 font-black">
+                Replying to{" "}
+              </span>
+              <span className="font-black text-blue-800 dark:text-midnight-blue">
                 @{replyingTo.senderName}
               </span>
               {replyingTo.content && (
@@ -485,7 +492,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
             <button
               onClick={() => setReplyingTo(null)}
-              className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-dreamy-dark transition-all active:scale-90"
+              className="w-6 h-6 flex items-center justify-center text-slate-500 dark:text-slate-400 transition-all active:scale-90"
             >
               <X size={14} />
             </button>
@@ -493,7 +500,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         )}
         <form
           onSubmit={handleSend}
-          className="flex items-center bg-white border border-slate-100 rounded-xl px-1 py-1 gap-1 shadow-inner"
+          className="flex items-center bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-1 py-1 gap-1 shadow-inner"
         >
           <div className="w-9 h-9 flex items-center justify-center text-dreamy-slate/30 ml-1">
             <Smile size={20} />
@@ -507,7 +514,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             autoCorrect="off"
             autoCapitalize="sentences"
             spellCheck="true"
-            className="flex-1 bg-transparent py-2.5 text-dreamy-dark font-black placeholder-slate-400 focus:outline-none text-sm"
+            className="flex-1 bg-transparent py-2.5 text-dreamy-dark dark:text-midnight-text font-black placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none text-sm"
             placeholder={replyingTo ? "Compose reply..." : "Say something..."}
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -524,8 +531,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
             }}
             className={`w-10 h-10 flex items-center justify-center rounded-2xl transition-all shadow-sm ${
               input.trim() || replyingTo
-                ? "bg-dreamy-blue text-white hover:scale-105 active:scale-95 shadow-dreamy-blue/20"
-                : "bg-slate-100 text-slate-200 cursor-not-allowed"
+                ? "bg-dreamy-blue dark:bg-midnight-blue text-white dark:text-slate-900 active:scale-95 shadow-dreamy-blue/20 dark:shadow-midnight-blue/20"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-200 dark:text-slate-600 cursor-not-allowed"
             }`}
           >
             <Send
@@ -551,11 +558,11 @@ const ModDecisionButton: React.FC<{
       className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-black text-[10px] tracking-widest transition-all duration-300 uppercase shadow-sm border-2 ${
         type === "APPROVE"
           ? isArmed
-            ? "bg-dreamy-blue text-white border-white scale-105"
-            : "bg-dreamy-blue/10 text-dreamy-blue border-white hover:bg-dreamy-blue/20"
+            ? "bg-dreamy-blue dark:bg-midnight-blue text-white dark:text-slate-900 border-white dark:border-slate-800 scale-105"
+            : "bg-dreamy-blue/10 dark:bg-midnight-blue/10 text-dreamy-blue dark:text-midnight-blue border-white dark:border-slate-800"
           : isArmed
-            ? "bg-red-400 text-white border-white scale-105"
-            : "bg-red-50 text-red-200 border-white hover:bg-red-100"
+            ? "bg-red-400 dark:bg-red-600 text-white dark:text-slate-900 border-white dark:border-slate-800 scale-105"
+            : "bg-red-50 dark:bg-red-900/20 text-red-200 dark:text-red-400 border-white dark:border-slate-800"
       }`}
     >
       {type === "APPROVE" ? <Check size={14} /> : <Ban size={14} />}

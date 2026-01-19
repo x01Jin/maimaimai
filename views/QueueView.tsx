@@ -18,6 +18,8 @@ import {
   Users,
   User,
   Ban,
+  Sun,
+  Moon,
 } from "lucide-react";
 import logo from "../assets/logo.png";
 import { GameState, QueueEntry, Player } from "../types";
@@ -35,6 +37,8 @@ interface QueueViewProps {
     type: "info" | "success" | "warning" | "error",
     duration?: number,
   ) => void;
+  theme: "light" | "dark";
+  toggleTheme: () => void;
 }
 
 interface QueueItemProps {
@@ -63,8 +67,8 @@ const LeaveQueueButton: React.FC<{ onLeave: () => void }> = ({ onLeave }) => {
       onClick={handleInteraction}
       className={`px-3 py-1.5 text-[10px] transition-all duration-300 rounded-full font-black uppercase tracking-widest outline-none ${
         isArmed
-          ? "bg-red-400 text-white scale-110 shadow-lg shadow-red-400/30 ring-4 ring-red-100"
-          : "text-dreamy-slate hover:text-red-400 bg-white/50 hover:bg-white border border-white"
+          ? "bg-red-400 text-white scale-110 shadow-lg shadow-red-400/30 ring-4 ring-red-100 dark:ring-red-900/50"
+          : "text-dreamy-slate dark:text-slate-400 bg-white/50 dark:bg-slate-800/50 border border-white dark:border-slate-700"
       }`}
       title={isArmed ? "Tap again to confirm!" : "Leave Queue"}
     >
@@ -102,19 +106,19 @@ const QueueItem: React.FC<QueueItemProps> = React.memo(
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         style={{ willChange: "transform, opacity" }}
-        className={`relative flex flex-col p-3 rounded-2xl border-2 shadow-sm transition-colors ${getEntryColor(item.type)} ${isMeIn ? "bg-white/90 border-dreamy-blue/40 ring-1 ring-dreamy-blue/10" : "bg-white/40 border-white/40"}`}
+        className={`relative flex flex-col p-3 rounded-2xl border-2 shadow-sm transition-colors ${getEntryColor(item.type)} ${isMeIn ? "bg-white/90 dark:bg-slate-900/90 border-dreamy-blue/40 dark:border-midnight-blue/40 ring-1 ring-dreamy-blue/10 dark:ring-midnight-blue/10" : "bg-white/40 dark:bg-slate-800/40 border-white/40 dark:border-slate-700/40"}`}
       >
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             {isMod && (
               <div
                 onPointerDown={(e) => controls.start(e)}
-                className="touch-none cursor-grab active:cursor-grabbing p-1 -ml-1 text-slate-300 hover:text-slate-500 transition-colors"
+                className="touch-none cursor-grab active:cursor-grabbing p-1 -ml-1 text-slate-300 dark:text-slate-600 transition-colors"
               >
                 <GripVertical size={18} />
               </div>
             )}
-            <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center font-black text-dreamy-slate text-[10px] shadow-sm border border-white/50">
+            <div className="w-6 h-6 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center font-black text-dreamy-slate dark:text-midnight-text text-[10px] shadow-sm border border-white/50 dark:border-slate-700">
               {index + 1}
             </div>
             <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500">
@@ -137,7 +141,7 @@ const QueueItem: React.FC<QueueItemProps> = React.memo(
                     "Remove",
                   );
                 }}
-                className="p-1 text-red-200 hover:text-red-400 transition-colors bg-white/50 rounded-full"
+                className="p-1 text-red-200 dark:text-red-900/40 transition-colors bg-white/50 dark:bg-slate-800/50 rounded-full"
               >
                 <X size={14} />
               </button>
@@ -146,13 +150,13 @@ const QueueItem: React.FC<QueueItemProps> = React.memo(
         </div>
 
         <div className="flex gap-1.5">
-          <div className="flex-1 bg-white/40 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold text-dreamy-dark shadow-sm border border-white/20 relative overflow-hidden">
+          <div className="flex-1 bg-white/40 dark:bg-slate-900/40 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold text-dreamy-dark dark:text-midnight-text shadow-sm border border-white/20 dark:border-slate-700 relative overflow-hidden">
             <div className="flex items-center gap-1.5">
               <span className="truncate max-w-[70px]">
                 {playersInEntry[0]?.name || "???"}
               </span>
               {playersInEntry[0]?.id === myId && (
-                <span className="text-[9px] text-dreamy-blue font-black uppercase bg-blue-50/50 px-1 rounded">
+                <span className="text-[9px] text-dreamy-blue dark:text-midnight-blue font-black uppercase bg-blue-50/50 dark:bg-midnight-blue/10 px-1 rounded">
                   Me
                 </span>
               )}
@@ -171,7 +175,7 @@ const QueueItem: React.FC<QueueItemProps> = React.memo(
                     "Kick",
                   )
                 }
-                className="p-0.5 text-red-300 hover:text-red-400 transition-colors"
+                className="p-0.5 text-red-300 dark:text-red-400/50 transition-colors"
               >
                 <X size={12} />
               </button>
@@ -179,7 +183,7 @@ const QueueItem: React.FC<QueueItemProps> = React.memo(
           </div>
 
           <div
-            className={`flex-1 p-2.5 rounded-xl flex items-center justify-center text-xs font-bold border-2 border-dashed ${item.type === "SOLO" ? "bg-dreamy-yellow/20 border-dreamy-yellow/40 text-dreamy-yellow" : "bg-white/20 border-white/20 text-dreamy-slate"} relative overflow-hidden`}
+            className={`flex-1 p-2.5 rounded-xl flex items-center justify-center text-xs font-bold border-2 border-dashed ${item.type === "SOLO" ? "bg-dreamy-yellow/20 dark:bg-midnight-yellow/10 border-dreamy-yellow/40 dark:border-midnight-yellow/40 text-dreamy-yellow dark:text-midnight-yellow" : "bg-white/20 dark:bg-slate-900/20 border-white/20 dark:border-slate-700 text-dreamy-slate dark:text-slate-400"} relative overflow-hidden`}
           >
             {item.type === "SOLO" ? (
               <span className="text-[9px] uppercase font-black tracking-widest opacity-60">
@@ -192,7 +196,7 @@ const QueueItem: React.FC<QueueItemProps> = React.memo(
                     {playersInEntry[1].name}
                   </span>
                   {playersInEntry[1].id === myId && (
-                    <span className="text-[9px] text-dreamy-blue font-black uppercase bg-blue-50/50 px-1 rounded">
+                    <span className="text-[9px] text-dreamy-blue dark:text-midnight-blue font-black uppercase bg-blue-50/50 dark:bg-midnight-blue/10 px-1 rounded">
                       Me
                     </span>
                   )}
@@ -211,7 +215,7 @@ const QueueItem: React.FC<QueueItemProps> = React.memo(
                         "Kick",
                       )
                     }
-                    className="p-0.5 text-red-300 hover:text-red-400 transition-colors"
+                    className="p-0.5 text-red-300 dark:text-red-400/50 transition-colors"
                   >
                     <X size={12} />
                   </button>
@@ -235,6 +239,8 @@ export const QueueView: React.FC<QueueViewProps> = ({
   session,
   isMod,
   addNotification,
+  theme,
+  toggleTheme,
 }) => {
   const [showJoinOptions, setShowJoinOptions] = useState(false);
   const [partnerSelectMode, setPartnerSelectMode] = useState(false);
@@ -402,25 +408,25 @@ export const QueueView: React.FC<QueueViewProps> = ({
 
   return (
     <div className="flex flex-col h-full relative">
-      <div className="p-4 glass-card border-b border-white flex justify-between items-center shadow-lg z-10 rounded-b-3xl">
+      <div className="p-4 glass-card border-b border-white dark:border-slate-800 flex justify-between items-center shadow-lg z-10 rounded-b-3xl">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 glass-card rounded-xl flex items-center justify-center border-2 border-white shadow-md overflow-hidden bg-white/40">
+          <div className="w-10 h-10 glass-card rounded-xl flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-md overflow-hidden bg-white/40 dark:bg-slate-900/40">
             <img src={logo} alt="Logo" className="w-8 h-8 object-contain" />
           </div>
           <div className="space-y-0.5">
-            <h2 className="font-black text-lg text-dreamy-dark tracking-tight leading-none">
+            <h2 className="font-black text-lg text-dreamy-dark dark:text-midnight-text tracking-tight leading-none">
               MaiMaiMai
             </h2>
             <div className="flex items-center gap-1.5 pt-0.5">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                 Lobby:{" "}
-                <span className="text-dreamy-purple select-all">
+                <span className="text-dreamy-purple dark:text-midnight-purple select-all">
                   {sessionName}
                 </span>
               </span>
               <button
                 onClick={copyCode}
-                className="p-1 hover:text-dreamy-purple text-slate-300 transition-colors"
+                className="p-1 text-slate-300 dark:text-slate-600 transition-colors"
               >
                 <Copy size={10} />
               </button>
@@ -428,11 +434,24 @@ export const QueueView: React.FC<QueueViewProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-3 pr-1">
+          <button
+            onClick={toggleTheme}
+            className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white/50 dark:bg-slate-800/50 text-dreamy-slate dark:text-midnight-slate transition-all active:scale-90 shadow-sm border border-white dark:border-slate-800"
+            title={
+              theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"
+            }
+          >
+            {theme === "dark" ? (
+              <Sun size={20} className="text-dreamy-yellow" />
+            ) : (
+              <Moon size={20} className="text-dreamy-blue" />
+            )}
+          </button>
           <div className="text-right">
-            <div className="text-2xl font-black text-dreamy-blue leading-none drop-shadow-sm">
+            <div className="text-2xl font-black text-dreamy-blue dark:text-midnight-blue leading-none drop-shadow-sm">
               {queue.reduce((acc, entry) => acc + entry.playerIds.length, 0)}
             </div>
-            <div className="text-[8px] text-slate-500 uppercase font-black tracking-widest">
+            <div className="text-[8px] text-slate-500 dark:text-slate-400 uppercase font-black tracking-widest">
               Queuing
             </div>
           </div>
@@ -441,12 +460,16 @@ export const QueueView: React.FC<QueueViewProps> = ({
 
       <div className="flex-1 overflow-y-auto no-scrollbar pb-20 px-3 pt-1 min-h-0">
         <div className="mt-2 mb-4">
-          <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 flex items-center gap-2 px-1">
-            <Music size={12} className="text-dreamy-pink" /> On Stage
+          <h3 className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-2 flex items-center gap-2 px-1">
+            <Music
+              size={12}
+              className="text-dreamy-pink dark:text-midnight-pink"
+            />{" "}
+            On Stage
           </h3>
 
           {currentSession ? (
-            <div className="glass-card rounded-3xl p-4 border-2 border-white shadow-lg relative overflow-hidden">
+            <div className="glass-card rounded-3xl p-4 border-2 border-white dark:border-slate-800 shadow-lg relative overflow-hidden">
               <div className="absolute top-0 right-0 p-3 opacity-5 pointer-events-none">
                 <Play size={80} />
               </div>
@@ -457,11 +480,11 @@ export const QueueView: React.FC<QueueViewProps> = ({
                   return (
                     <div
                       key={id}
-                      className={`px-3 py-2 rounded-2xl border-2 flex items-center justify-between gap-2 shadow-sm transition-all ${isDone ? "bg-dreamy-green/10 border-dreamy-green/30" : "bg-white/80 border-white"}`}
+                      className={`px-3 py-2 rounded-2xl border-2 flex items-center justify-between gap-2 shadow-sm transition-all ${isDone ? "bg-dreamy-green/10 dark:bg-midnight-green/10 border-dreamy-green/30 dark:border-midnight-green/30" : "bg-white/80 dark:bg-slate-900/80 border-white dark:border-slate-700"}`}
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black ${isDone ? "bg-dreamy-green text-white" : "bg-white/50 text-dreamy-slate border border-white"}`}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black ${isDone ? "bg-dreamy-green dark:bg-midnight-green text-white dark:text-slate-900" : "bg-white/50 dark:bg-slate-800/50 text-dreamy-slate dark:text-midnight-text border border-white dark:border-slate-700"}`}
                         >
                           {isDone ? (
                             <Check size={16} />
@@ -469,7 +492,7 @@ export const QueueView: React.FC<QueueViewProps> = ({
                             p?.name?.charAt(0) || "?"
                           )}
                         </div>
-                        <span className="font-black text-dreamy-dark">
+                        <span className="font-black text-dreamy-dark dark:text-midnight-text">
                           {p?.name || "???"}
                         </span>
                         {!p?.isConnected && (
@@ -572,7 +595,7 @@ export const QueueView: React.FC<QueueViewProps> = ({
               </div>
             </div>
           ) : (
-            <div className="p-8 text-center text-slate-300 glass-card rounded-3xl border-2 border-dashed border-white shadow-inner">
+            <div className="p-8 text-center text-slate-300 dark:text-slate-600 glass-card rounded-3xl border-2 border-dashed border-white dark:border-slate-800 shadow-inner">
               <p className="font-black uppercase tracking-[0.2em] text-[10px]">
                 Stage is open!
               </p>
@@ -581,12 +604,12 @@ export const QueueView: React.FC<QueueViewProps> = ({
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] px-1 flex items-center justify-between">
+          <h3 className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] px-1 flex items-center justify-between">
             <span>Next in Line</span>
             <span className="opacity-70">{localQueue.length} groups</span>
           </h3>
           {localQueue.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-dreamy-dark gap-4 py-16 glass-card border-white border-2 rounded-3xl">
+            <div className="flex flex-col items-center justify-center text-dreamy-dark dark:text-midnight-text gap-4 py-16 glass-card border-white dark:border-slate-800 border-2 rounded-3xl">
               <ListOrdered size={48} className="opacity-10" />
               <p className="font-black uppercase tracking-widest text-[10px] opacity-40">
                 Empty Queue
@@ -622,20 +645,20 @@ export const QueueView: React.FC<QueueViewProps> = ({
       </div>
 
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-[5] opacity-50">
-        <div className="absolute -top-24 -left-24 w-64 h-64 bg-dreamy-pink/10 rounded-full blur-2xl will-change-transform" />
-        <div className="absolute top-1/2 -right-24 w-64 h-64 bg-dreamy-blue/10 rounded-full blur-2xl will-change-transform" />
-        <div className="absolute -bottom-24 left-1/2 w-64 h-64 bg-dreamy-purple/10 rounded-full blur-2xl will-change-transform" />
+        <div className="absolute -top-24 -left-24 w-64 h-64 bg-dreamy-pink/10 dark:bg-midnight-pink/5 rounded-full blur-2xl will-change-transform" />
+        <div className="absolute top-1/2 -right-24 w-64 h-64 bg-dreamy-blue/10 dark:bg-midnight-blue/5 rounded-full blur-2xl will-change-transform" />
+        <div className="absolute -bottom-24 left-1/2 w-64 h-64 bg-dreamy-purple/10 dark:bg-midnight-purple/5 rounded-full blur-2xl will-change-transform" />
       </div>
 
       {showJoinOptions && (
-        <div className="absolute inset-0 bg-dreamy-dark/20 backdrop-blur-xl z-50 flex flex-col items-center justify-end p-6 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-midnight-bg/80 dark:bg-black/40 backdrop-blur-xl z-50 flex flex-col items-center justify-end p-6 animate-in fade-in duration-300">
           <motion.div
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="w-full glass-card border-white/40 rounded-5xl p-6 shadow-2xl space-y-4"
+            className="w-full glass-card border-white/40 dark:border-slate-800 rounded-5xl p-6 shadow-2xl space-y-4"
           >
             <div className="flex justify-between items-center mb-2 px-2">
-              <h3 className="font-black text-xl text-dreamy-dark tracking-tight">
+              <h3 className="font-black text-xl text-dreamy-dark dark:text-midnight-text tracking-tight">
                 Pick a Mode!
               </h3>
               <button
@@ -643,7 +666,7 @@ export const QueueView: React.FC<QueueViewProps> = ({
                   setShowJoinOptions(false);
                   setPartnerSelectMode(false);
                 }}
-                className="w-10 h-10 flex items-center justify-center bg-white/50 rounded-full hover:bg-white text-dreamy-slate hover:text-dreamy-dark transition-colors shadow-sm"
+                className="w-10 h-10 flex items-center justify-center bg-white/50 dark:bg-slate-800/50 rounded-full text-dreamy-slate dark:text-slate-400 transition-colors shadow-sm"
               >
                 <X size={20} />
               </button>
@@ -656,16 +679,16 @@ export const QueueView: React.FC<QueueViewProps> = ({
                     session.joinQueueMatch();
                     setShowJoinOptions(false);
                   }}
-                  className="w-full p-5 rounded-4xl bg-dreamy-blue/20 border-2 border-white/40 hover:bg-dreamy-blue/30 flex items-center gap-4 transition-all group active:scale-[0.98] shadow-sm"
+                  className="w-full p-5 rounded-4xl bg-dreamy-blue/20 dark:bg-midnight-blue/10 border-2 border-white/40 dark:border-slate-800 flex items-center gap-4 transition-all group active:scale-[0.98] shadow-sm"
                 >
-                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-dreamy-blue shadow-sm group-hover:scale-110 transition-transform">
+                  <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-dreamy-blue dark:text-midnight-blue shadow-sm transition-transform">
                     <UserPlus size={24} />
                   </div>
                   <div className="text-left">
-                    <div className="font-black text-dreamy-dark text-lg">
+                    <div className="font-black text-dreamy-dark dark:text-midnight-text text-lg">
                       Duo Match
                     </div>
-                    <div className="text-xs font-bold text-dreamy-slate">
+                    <div className="text-xs font-bold text-dreamy-slate dark:text-slate-400">
                       Find a random buddy!
                     </div>
                   </div>
@@ -673,16 +696,16 @@ export const QueueView: React.FC<QueueViewProps> = ({
 
                 <button
                   onClick={() => setPartnerSelectMode(true)}
-                  className="w-full p-5 rounded-4xl bg-dreamy-pink/20 border-2 border-white/40 hover:bg-dreamy-pink/30 flex items-center gap-4 transition-all group active:scale-[0.98] shadow-sm"
+                  className="w-full p-5 rounded-4xl bg-dreamy-pink/20 dark:bg-midnight-pink/10 border-2 border-white/40 dark:border-slate-800 flex items-center gap-4 transition-all group active:scale-[0.98] shadow-sm"
                 >
-                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-dreamy-pink shadow-sm group-hover:scale-110 transition-transform">
+                  <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-dreamy-pink dark:text-midnight-pink shadow-sm transition-transform">
                     <Users size={24} />
                   </div>
                   <div className="text-left">
-                    <div className="font-black text-dreamy-dark text-lg">
+                    <div className="font-black text-dreamy-dark dark:text-midnight-text text-lg">
                       With Partner
                     </div>
-                    <div className="text-xs font-bold text-dreamy-slate">
+                    <div className="text-xs font-bold text-dreamy-slate dark:text-slate-400">
                       Bring your bestie!
                     </div>
                   </div>
@@ -693,16 +716,16 @@ export const QueueView: React.FC<QueueViewProps> = ({
                     session.requestSolo();
                     setShowJoinOptions(false);
                   }}
-                  className="w-full p-5 rounded-4xl bg-dreamy-yellow/20 border-2 border-white/40 hover:bg-dreamy-yellow/30 flex items-center gap-4 transition-all group active:scale-[0.98] shadow-sm"
+                  className="w-full p-5 rounded-4xl bg-dreamy-yellow/20 dark:bg-midnight-yellow/10 border-2 border-white/40 dark:border-slate-800 flex items-center gap-4 transition-all group active:scale-[0.98] shadow-sm"
                 >
-                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-dreamy-yellow shadow-sm group-hover:scale-110 transition-transform">
+                  <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-dreamy-yellow dark:text-midnight-yellow shadow-sm transition-transform">
                     <User size={24} />
                   </div>
                   <div className="text-left">
-                    <div className="font-black text-dreamy-dark text-lg">
+                    <div className="font-black text-dreamy-dark dark:text-midnight-text text-lg">
                       Solo Play
                     </div>
-                    <div className="text-xs font-bold text-dreamy-slate">
+                    <div className="text-xs font-bold text-dreamy-slate dark:text-slate-400">
                       Requires group vote
                     </div>
                   </div>
@@ -710,12 +733,12 @@ export const QueueView: React.FC<QueueViewProps> = ({
               </div>
             ) : (
               <div className="space-y-4">
-                <p className="text-xs font-black uppercase tracking-widest text-dreamy-slate px-2">
+                <p className="text-xs font-black uppercase tracking-widest text-dreamy-slate dark:text-slate-400 px-2">
                   Select your partner:
                 </p>
                 <div className="max-h-64 overflow-y-auto space-y-3 no-scrollbar py-1">
                   {availablePartners.length === 0 ? (
-                    <div className="text-center text-dreamy-slate py-10 font-bold bg-white/40 rounded-3xl border-2 border-dashed border-white">
+                    <div className="text-center text-dreamy-slate dark:text-slate-400 py-10 font-bold bg-white/40 dark:bg-slate-800/40 rounded-3xl border-2 border-dashed border-white dark:border-slate-700">
                       No one's online right now...
                     </div>
                   ) : (
@@ -727,12 +750,12 @@ export const QueueView: React.FC<QueueViewProps> = ({
                           setShowJoinOptions(false);
                           setPartnerSelectMode(false);
                         }}
-                        className="w-full p-4 glass-card bg-white/60 hover:bg-white rounded-3xl text-left border-2 border-transparent hover:border-dreamy-pink/30 transition-all flex justify-between items-center group active:scale-[0.98] shadow-sm"
+                        className="w-full p-4 glass-card bg-white/60 dark:bg-slate-800/60 rounded-3xl text-left border-2 border-transparent transition-all flex justify-between items-center group active:scale-[0.98] shadow-sm"
                       >
-                        <span className="font-black text-dreamy-dark">
+                        <span className="font-black text-dreamy-dark dark:text-midnight-text">
                           {p.name}
                         </span>
-                        <div className="w-3 h-3 rounded-full bg-dreamy-green shadow-[0_0_8px_rgba(78,205,196,0.6)]"></div>
+                        <div className="w-3 h-3 rounded-full bg-dreamy-green dark:bg-midnight-green shadow-[0_0_8px_rgba(78,205,196,0.6)]"></div>
                       </button>
                     ))
                   )}
@@ -751,7 +774,7 @@ export const QueueView: React.FC<QueueViewProps> = ({
         </div>
       )}
 
-      <div className="mx-2 mb-2 p-2 glass-card border-2 border-white flex gap-1.5 rounded-2xl shadow-lg z-40 bg-white/80">
+      <div className="mx-2 mb-2 p-2 glass-card border-2 border-white dark:border-slate-800 flex gap-1.5 rounded-2xl shadow-lg z-40 bg-white/80 dark:bg-slate-900/80">
         {isMod && (
           <Button
             variant="success"
@@ -761,7 +784,7 @@ export const QueueView: React.FC<QueueViewProps> = ({
               setModSelectedPlayerId("");
               setShowModQueueModal(true);
             }}
-            className="w-14 h-14 shrink-0 rounded-3xl ring-4 ring-white"
+            className="w-14 h-14 shrink-0 rounded-3xl ring-4 ring-white dark:ring-slate-800"
             title="Queue Guest Player"
           >
             <UserPlus size={24} />
@@ -771,7 +794,7 @@ export const QueueView: React.FC<QueueViewProps> = ({
           fullWidth
           size="lg"
           onClick={() => setShowJoinOptions(true)}
-          className="flex items-center justify-center gap-2 flex-1 h-14 rounded-3xl ring-4 ring-white"
+          className="flex items-center justify-center gap-2 flex-1 h-14 rounded-3xl ring-4 ring-white dark:ring-slate-800"
         >
           <div className="w-7 h-7 bg-white/30 rounded-lg flex items-center justify-center">
             <Play size={16} className="fill-current" />
@@ -867,7 +890,7 @@ const ModQueueModal: React.FC<{
         {mode === "SELECT_PLAYER" && (
           <div className="max-h-60 overflow-y-auto space-y-2 no-scrollbar">
             {validCustomPlayers.length === 0 ? (
-              <div className="text-center text-slate-500 py-4">
+              <div className="text-center text-slate-500 dark:text-slate-400 py-4">
                 No available guests. Add one in the Players tab.
               </div>
             ) : (
@@ -878,10 +901,10 @@ const ModQueueModal: React.FC<{
                     setSelectedPlayerId(p.id);
                     setMode("SELECT_MODE");
                   }}
-                  className="w-full p-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-left font-bold text-white flex justify-between items-center"
+                  className="w-full p-3 bg-slate-700 dark:bg-slate-800 rounded-xl text-left font-bold text-white dark:text-slate-100 flex justify-between items-center"
                 >
                   {p.name}
-                  <span className="text-purple-400 text-xs uppercase">
+                  <span className="text-purple-400 dark:text-midnight-purple text-xs uppercase">
                     Guest
                   </span>
                 </button>
@@ -897,9 +920,9 @@ const ModQueueModal: React.FC<{
                 session.joinQueueMatch(selectedPlayerId);
                 onClose();
               }}
-              className="w-full p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/50 hover:bg-cyan-500/20 flex items-center gap-3 transition-colors text-left"
+              className="w-full p-4 rounded-xl bg-cyan-500/10 dark:bg-midnight-blue/10 border border-cyan-500/50 dark:border-midnight-blue/50 flex items-center gap-3 transition-colors text-left"
             >
-              <div className="p-2 bg-cyan-500 rounded-lg text-slate-900">
+              <div className="p-2 bg-cyan-500 dark:bg-midnight-blue rounded-lg text-slate-900">
                 <UserPlus size={20} />
               </div>
               <div>
@@ -908,9 +931,9 @@ const ModQueueModal: React.FC<{
             </button>
             <button
               onClick={() => setMode("SELECT_PARTNER")}
-              className="w-full p-4 rounded-xl bg-pink-500/10 border border-pink-500/50 hover:bg-pink-500/20 flex items-center gap-3 transition-colors text-left"
+              className="w-full p-4 rounded-xl bg-pink-500/10 dark:bg-midnight-pink/10 border border-pink-500/50 dark:border-midnight-pink/50 flex items-center gap-3 transition-colors text-left"
             >
-              <div className="p-2 bg-pink-500 rounded-lg text-white">
+              <div className="p-2 bg-pink-500 dark:bg-midnight-pink rounded-lg text-white dark:text-slate-900">
                 <Users size={20} />
               </div>
               <div>
@@ -922,9 +945,9 @@ const ModQueueModal: React.FC<{
                 session.requestSolo(selectedPlayerId, selectedPlayerName);
                 onClose();
               }}
-              className="w-full p-4 rounded-xl bg-orange-500/10 border border-orange-500/50 hover:bg-orange-500/20 flex items-center gap-3 transition-colors text-left"
+              className="w-full p-4 rounded-xl bg-orange-500/10 dark:bg-midnight-yellow/10 border border-orange-500/50 dark:border-midnight-yellow/50 flex items-center gap-3 transition-colors text-left"
             >
-              <div className="p-2 bg-orange-500 rounded-lg text-white">
+              <div className="p-2 bg-orange-500 dark:bg-midnight-yellow rounded-lg text-white dark:text-slate-900">
                 <User size={20} />
               </div>
               <div>
@@ -937,7 +960,7 @@ const ModQueueModal: React.FC<{
         {mode === "SELECT_PARTNER" && (
           <div className="max-h-60 overflow-y-auto space-y-2 no-scrollbar">
             {availablePartners.length === 0 ? (
-              <div className="text-center text-slate-500 py-4">
+              <div className="text-center text-slate-500 dark:text-slate-400 py-4">
                 No available partners.
               </div>
             ) : (
@@ -948,11 +971,11 @@ const ModQueueModal: React.FC<{
                     session.joinQueuePartner(p.id, selectedPlayerId);
                     onClose();
                   }}
-                  className="w-full p-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-left font-bold text-white flex justify-between items-center"
+                  className="w-full p-3 bg-slate-700 dark:bg-slate-800 rounded-xl text-left font-bold text-white dark:text-slate-100 flex justify-between items-center"
                 >
                   {p.name}
                   {p.isCustom && (
-                    <span className="text-purple-400 text-xs uppercase">
+                    <span className="text-purple-400 dark:text-midnight-purple text-xs uppercase">
                       Guest
                     </span>
                   )}

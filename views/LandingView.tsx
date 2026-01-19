@@ -66,8 +66,10 @@ export const LandingView: React.FC<LandingViewProps> = ({
         className="flex flex-col h-full p-6 justify-center gap-6"
       >
         <div className="text-center space-y-1.5">
-          <h1 className="text-2xl font-black text-dreamy-dark">Join Session</h1>
-          <p className="text-dreamy-slate font-bold uppercase text-[10px] tracking-widest leading-none">
+          <h1 className="text-2xl font-black text-dreamy-dark dark:text-midnight-text">
+            Join Session
+          </h1>
+          <p className="text-dreamy-slate dark:text-midnight-slate font-bold uppercase text-[10px] tracking-widest leading-none">
             Enter the code from the host
           </p>
         </div>
@@ -142,8 +144,8 @@ export const LandingView: React.FC<LandingViewProps> = ({
           }}
           className="flex justify-center mb-4"
         >
-          <div className="w-24 h-24 glass-card rounded-4xl flex items-center justify-center shadow-xl border-2 border-white relative overflow-hidden bg-white/40">
-            <div className="absolute inset-0 bg-gradient-to-tr from-dreamy-pink/10 to-dreamy-blue/10" />
+          <div className="w-24 h-24 glass-card rounded-4xl flex items-center justify-center shadow-xl border-2 border-white dark:border-slate-800 relative overflow-hidden bg-white/40 dark:bg-slate-900/40">
+            <div className="absolute inset-0 bg-gradient-to-tr from-dreamy-pink/10 to-dreamy-blue/10 dark:from-midnight-pink/10 dark:to-midnight-blue/10" />
             <img
               src={logo}
               alt="Logo"
@@ -151,10 +153,12 @@ export const LandingView: React.FC<LandingViewProps> = ({
             />
           </div>
         </motion.div>
-        <h1 className="text-3xl font-black text-dreamy-dark tracking-tight leading-none">
-          Mai<span className="text-dreamy-blue">Mai</span>Mai
+        <h1 className="text-3xl font-black text-dreamy-dark dark:text-midnight-text tracking-tight leading-none">
+          Mai
+          <span className="text-dreamy-blue dark:text-midnight-blue">Mai</span>
+          Mai
         </h1>
-        <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.15em] opacity-80">
+        <p className="text-slate-500 dark:text-slate-400 text-[11px] font-black uppercase tracking-[0.15em] opacity-80">
           A maimai Queueing Service
         </p>
       </div>
@@ -166,7 +170,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
           </div>
         )}
 
-        <div className="glass-card p-4 rounded-3xl border-2 border-white shadow-lg mb-2">
+        <div className="glass-card p-4 rounded-3xl border-2 border-white dark:border-slate-800 shadow-lg mb-2">
           <Input
             label="Set your IGN"
             placeholder="Whatev's name..."
@@ -181,7 +185,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
             <Button
               fullWidth
               size="lg"
-              className="bg-dreamy-yellow text-dreamy-dark border-b-4 border-yellow-400 shadow-md shadow-yellow-200"
+              className="bg-dreamy-yellow dark:bg-midnight-yellow text-dreamy-dark dark:text-slate-900 border-b-4 border-yellow-400 dark:border-yellow-600 shadow-md shadow-yellow-200 dark:shadow-none"
               onClick={() => {
                 onRecoverSession(lastSession.code, name);
               }}
@@ -219,7 +223,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
 
       {history.length > 0 && (
         <div className="w-full mt-2">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 ml-2 flex items-center gap-2">
+          <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-2 ml-2 flex items-center gap-2">
             <Clock size={14} /> History
           </h3>
           <div className="space-y-3">
@@ -238,14 +242,14 @@ export const LandingView: React.FC<LandingViewProps> = ({
                       onRecoverSession(h.code, name);
                     }}
                     disabled={!name.trim()}
-                    className="flex-1 glass-card hover:bg-white p-3 rounded-2xl flex justify-between items-center text-left border-2 border-white/80 transition-all group active:scale-[0.98]"
+                    className="flex-1 glass-card p-3 rounded-2xl flex justify-between items-center text-left border-2 border-white/80 dark:border-slate-800 transition-all group active:scale-[0.98]"
                   >
                     <div className="flex flex-col">
-                      <span className="font-mono font-black text-lg text-dreamy-purple group-hover:text-dreamy-dark transition-colors">
+                      <span className="font-mono font-black text-lg text-dreamy-purple dark:text-midnight-purple transition-colors">
                         {h.code}
                       </span>
                     </div>
-                    <span className="text-[9px] font-black text-slate-500 bg-white/50 px-2.5 py-0.5 rounded-full border border-white">
+                    <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 bg-white/50 dark:bg-slate-800/50 px-2.5 py-0.5 rounded-full border border-white dark:border-slate-700">
                       {new Date(h.lastJoined).toLocaleDateString()}
                     </span>
                   </button>
@@ -254,7 +258,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
                       e.stopPropagation();
                       handleDeleteSession(h.code);
                     }}
-                    className="w-12 glass-card hover:bg-red-50 border-2 border-white rounded-2xl flex items-center justify-center text-dreamy-slate hover:text-red-400 transition-all active:scale-90"
+                    className="w-12 glass-card border-2 border-white dark:border-slate-800 rounded-2xl flex items-center justify-center text-dreamy-slate dark:text-midnight-slate transition-all active:scale-90"
                     title="Remove from history"
                   >
                     <Trash2 size={18} />

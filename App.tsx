@@ -34,8 +34,8 @@ const LeaveButton: React.FC<{ onLeave: () => void }> = ({ onLeave }) => {
       onClick={handleInteraction}
       className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-500 rounded-2xl ${
         isArmed
-          ? "bg-red-50 text-red-400 scale-110 active:scale-95"
-          : "text-slate-400 hover:text-red-300"
+          ? "bg-red-50 text-red-400 dark:bg-red-900/20 dark:text-red-300 scale-110 active:scale-95"
+          : "text-slate-400 dark:text-slate-500"
       }`}
     >
       <div className="relative">
@@ -67,6 +67,31 @@ export default function App() {
   } = sessionHook;
 
   const [myName, setMyName] = useState(() => getIdentity().name || "");
+
+  const [theme, setTheme] = useState(() => {
+    if (
+      localStorage.theme === "dark" ||
+      (!("theme" in localStorage) &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches)
+    ) {
+      return "dark" as const;
+    }
+    return "light" as const;
+  });
+
+  useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+      localStorage.theme = "dark";
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.theme = "light";
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
 
   const chatHook = useYjsChat(ydoc);
   const { messages, sendSystemMessage } = chatHook;
@@ -462,13 +487,13 @@ export default function App() {
             <h1 className="text-4xl font-black text-red-600 tracking-tighter uppercase shake-animation">
               BANISHED
             </h1>
-            <p className="text-slate-400 font-bold max-w-xs leading-relaxed">
+            <p className="text-slate-400 dark:text-slate-500 font-bold max-w-xs leading-relaxed">
               You have been exiled to the shadow realm. There is no return.
             </p>
           </div>
           <button
             onClick={() => window.location.reload()}
-            className="mt-8 px-8 py-3 bg-red-900/20 hover:bg-red-900/40 border border-red-900/50 rounded-2xl text-red-500 font-black uppercase tracking-widest transition-all"
+            className="mt-8 px-8 py-3 bg-red-900/20 border border-red-900/50 rounded-2xl text-red-500 font-black uppercase tracking-widest transition-all"
           >
             Accept Fate
           </button>
@@ -484,10 +509,10 @@ export default function App() {
             <div className="absolute inset-0 w-16 h-16 border-4 border-dreamy-blue border-t-transparent rounded-full animate-spin"></div>
           </div>
           <div className="text-center space-y-1">
-            <p className="font-black text-xl text-dreamy-blue tracking-tight">
+            <p className="font-black text-xl text-dreamy-blue dark:text-midnight-blue tracking-tight">
               Syncing Stars...
             </p>
-            <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest animate-pulse">
+            <p className="text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase tracking-widest animate-pulse">
               Establishing connection
             </p>
           </div>
@@ -510,7 +535,7 @@ export default function App() {
                   session.leaveSession();
                   setIsStuck(false);
                 }}
-                className="px-6 py-2.5 bg-white/80 hover:bg-white border-2 border-slate-100 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm hover:shadow-md"
+                className="px-6 py-2.5 bg-white/80 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
               >
                 Cancel
               </button>
@@ -538,6 +563,8 @@ export default function App() {
                 session={session}
                 isMod={isMod}
                 addNotification={addNotification}
+                theme={theme}
+                toggleTheme={toggleTheme}
               />
             </motion.div>
           )}
@@ -615,7 +642,7 @@ export default function App() {
           (sessionName || sessionCode) &&
           !isKeyboardOpen && (
             <div className="px-2 pb-2 safe-area-bottom main-nav-container shrink-0 z-50">
-              <div className="glass-card bg-white/95 border-2 border-white rounded-2xl shadow-md flex justify-around items-center h-[60px] px-1">
+              <div className="glass-card bg-white/95 dark:bg-slate-900/90 border-2 border-white dark:border-slate-800 rounded-2xl shadow-md flex justify-around items-center h-[60px] px-1">
                 <TabButton
                   active={tab === "queue"}
                   onClick={() => setTab("queue")}
@@ -686,7 +713,7 @@ const TabButton: React.FC<{
 }> = ({ active, onClick, icon, label, color, badge }) => (
   <button
     onClick={onClick}
-    className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 rounded-2xl ${active ? `${color} scale-110` : "text-slate-400 hover:text-slate-600"}`}
+    className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 rounded-2xl ${active ? `${color} scale-110` : "text-slate-400 dark:text-slate-500"}`}
   >
     <div className="relative">
       {icon}
@@ -718,8 +745,8 @@ const LeaveTabButton: React.FC<{ onLeave: () => void }> = ({ onLeave }) => {
       onClick={handleInteraction}
       className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 rounded-2xl ${
         isArmed
-          ? "text-red-500 scale-110 bg-red-50"
-          : "text-slate-400 hover:text-red-400"
+          ? "text-red-500 scale-110 bg-red-50 dark:bg-red-900/20"
+          : "text-slate-400 dark:text-slate-500"
       }`}
     >
       <div className="relative">
